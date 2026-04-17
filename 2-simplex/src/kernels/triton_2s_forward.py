@@ -144,8 +144,9 @@ if _check_triton():
                 )
 
                 m_i = m_ij
-            acc = acc / l_i[:, None]
 
+        # Normalize AFTER both loops — dividing inside kv1 gives wrong results
+        acc = acc / l_i[:, None]
         acc = tl.where(q_mask, acc, 0.0)
         acc = acc.to(data_dtype)
         out_offs = q_offs_s[:, None] * out_stride_s + qkv_offs_h[None, :] * out_stride_h
