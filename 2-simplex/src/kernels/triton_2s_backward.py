@@ -315,9 +315,8 @@ def backward(grad_output, tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_h
     dK2 = torch.zeros_like(Kp_r)
     dV2 = torch.zeros_like(Vp_r)
 
-    # Launch KV1
-    grid_kv1 = (triton.cdiv(N, 32), 1 * H)
-    strides = {
+    # Strides shared by both kernels
+    shared_strides = {
         "q_stride_b": Q_r.stride(0), "q_stride_s": Q_r.stride(1), "q_stride_k": Q_r.stride(2), "q_stride_h": Q_r.stride(3),
         "k1_stride_b": K_r.stride(0), "k1_stride_s": K_r.stride(1), "k1_stride_k": K_r.stride(2), "k1_stride_h": K_r.stride(3),
         "k2_stride_b": Kp_r.stride(0), "k2_stride_s": Kp_r.stride(1), "k2_stride_k": Kp_r.stride(2), "k2_stride_h": Kp_r.stride(3),
@@ -327,26 +326,36 @@ def backward(grad_output, tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_h
         "m_stride_b": 0, "m_stride_k": M_r.stride(1), "m_stride_s": M_r.stride(2),
         "d_stride_b": 0, "d_stride_k": D_row.stride(1), "d_stride_s": D_row.stride(2),
         "dq_stride_b": dQ.stride(0), "dq_stride_s": dQ.stride(1), "dq_stride_k": dQ.stride(2), "dq_stride_h": dQ.stride(3),
+    }
+
+    # KV1-specific: dK1, dV1 strides
+    strides_kv1 = {
+        **shared_strides,
         "dk1_stride_b": dK1.stride(0), "dk1_stride_s": dK1.stride(1), "dk1_stride_k": dK1.stride(2), "dk1_stride_h": dK1.stride(3),
         "dv1_stride_b": dV1.stride(0), "dv1_stride_s": dV1.stride(1), "dv1_stride_k": dV1.stride(2), "dv1_stride_h": dV1.stride(3),
     }
 
+    # KV2Q-specific: dK2, dV2 strides (no dk1/dv1!)
+    strides_kv2 = {
+        **shared_strides,
+        "dk2_stride_b": dK2.stride(0), "dk2_stride_s": dK2.stride(1), "dk2_stride_k": dK2.stride(2), "dk2_stride_h": dK2.stride(3),
+        "dv2_stride_b": dV2.stride(0), "dv2_stride_s": dV2.stride(1), "dv2_stride_k": dV2.stride(2), "dv2_stride_h": dV2.stride(3),
+    }
+
+    # Launch KV1 kernel
+    grid_kv1 = (triton.cdiv(N, 32), 1 * H)
     two_simplicial_attn_bwd_kv1_kernel[grid_kv1](
         Q_r, K_r, Kp_r, V_r, Vp_r, dO_r, M_r, D_row,
         dQ, dK1, dV1,
         1, N, H, head_dim,
         w1, w2,
-        **strides,
+        **strides_kv1,
         BLOCK_SIZE_Q=32, BLOCK_SIZE_KV=32, HEAD_DIM=head_dim, SM_SCALE=1.0 / (head_dim ** 0.5),
         K2_BIAS=0.0, V2_BIAS=0.0, COMPUTE_DQ=True, num_stages=1, is_flipped=False
     )
 
-    # Launch KV2Q (Pass 1 & 2)
+    # Launch KV2Q kernel (Pass 1 then Pass 2)
     grid_kv2q = (triton.cdiv(N, 64), 1 * H)
-    strides_kv2 = strides.copy()
-    strides_kv2["dk2_stride_b"] = dK2.stride(0); strides_kv2["dk2_stride_s"] = dK2.stride(1); strides_kv2["dk2_stride_k"] = dK2.stride(2); strides_kv2["dk2_stride_h"] = dK2.stride(3)
-    strides_kv2["dv2_stride_b"] = dV2.stride(0); strides_kv2["dv2_stride_s"] = dV2.stride(1); strides_kv2["dv2_stride_k"] = dV2.stride(2); strides_kv2["dv2_stride_h"] = dV2.stride(3)
-
     two_simplicial_attn_bwd_kv2q_kernel[grid_kv2q](
         Q_r, K_r, Kp_r, V_r, Vp_r, dO_r, M_r, D_row,
         dQ, dK2, dV2,
