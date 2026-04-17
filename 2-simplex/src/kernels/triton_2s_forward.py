@@ -197,13 +197,13 @@ def forward(tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_heads, head_dim
     H = num_heads
     D = head_dim
 
-    Q_r  = Q.view(1, N, D, H).contiguous()
-    K_r  = K.view(1, N, D, H).contiguous()
-    V_r  = V.view(1, N, D, H).contiguous()
-    Kp_r = Kp.view(1, N, D, H).contiguous()
-    Vp_r = Vp.view(1, N, D, H).contiguous()
+    Q_r  = Q.view(1, N, H, D).contiguous()
+    K_r  = K.view(1, N, H, D).contiguous()
+    V_r  = V.view(1, N, H, D).contiguous()
+    Kp_r = Kp.view(1, N, H, D).contiguous()
+    Vp_r = Vp.view(1, N, H, D).contiguous()
 
-    O = torch.empty((1, N, D, H), device=tri_feats.device, dtype=tri_feats.dtype)
+    O = torch.empty((1, N, H, D), device=tri_feats.device, dtype=tri_feats.dtype)
     M = torch.empty((1, H, N),    device=tri_feats.device, dtype=tri_feats.dtype)
 
     q_stride_b, q_stride_s, q_stride_k, q_stride_h = Q_r.stride()

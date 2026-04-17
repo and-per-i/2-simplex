@@ -289,25 +289,21 @@ def backward(grad_output, tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_h
     H = num_heads
     D = head_dim
 
-    # Reshape all to [1, N, D, H]
-    Q_r = Q.view(1, N, D, H).contiguous()
-    K_r = K.view(1, N, D, H).contiguous()
-    V_r = V.view(1, N, D, H).contiguous()
-    Kp_r = Kp.view(1, N, D, H).contiguous()
-    Vp_r = Vp.view(1, N, D, H).contiguous()
-    dO_r = grad_output.view(1, N, D, H).contiguous()
+    # Reshape all to [1, N, H, D] — matches kernel layout [B, S, H, D]
+    Q_r = Q.view(1, N, H, D).contiguous()
+    K_r = K.view(1, N, H, D).contiguous()
+    V_r = V.view(1, N, H, D).contiguous()
+    Kp_r = Kp.view(1, N, H, D).contiguous()
+    Vp_r = Vp.view(1, N, H, D).contiguous()
+    dO_r = grad_output.view(1, N, H, D).contiguous()
 
-    # Re-fetch M (saved from forward) and compute D
-    # For now, we assume M is passed in. But in actual autograd, we'd have it.
-    # We also need a rowsum(dO * O) helper.
-    # Let's assume we have them or compute them here for the MVP.
-    # O is required to compute D.
     from . import triton_2s_forward
     O_r, M_r = triton_2s_forward.forward(tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_heads, head_dim, w1, w2)
-    O_r = O_r.view(1, N, D, H)
-    M_r = M_r.view(1, H, N)
+    O_r = O_r.view(1, N, H, D).contiguous()
+    M_r = M_r.view(1, H, N).contiguous()
 
-    D_row = torch.sum(dO_r * O_r, dim=2).contiguous()  # [1, H, N] — rowsum(dO * O)
+    # D_row = rowsum(dO * O): sum over head_dim axis (dim=3), result [1, N, H] -> permute to [1, H, N]
+    D_row = (dO_r.float() * O_r.float()).sum(dim=3).permute(0, 2, 1).contiguous()  # [1, H, N]
 
     dQ = torch.zeros_like(Q_r)
     dK1 = torch.zeros_like(K_r)
