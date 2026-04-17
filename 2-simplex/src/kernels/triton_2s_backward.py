@@ -353,7 +353,7 @@ def backward(grad_output, tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_h
         1, N, H, head_dim,
         w1, w2,
         **strides_kv2,
-        HEAD_DIM=head_dim, SM_SCALE=1.0 / (head_dim ** 0.5), K2_BIAS=0.0, V2_BIAS=0.0, num_stages=1, IS_SECOND_PASS=False
+        HEAD_DIM=head_dim, SM_SCALE=1.0 / (head_dim ** 0.5), K2_BIAS=0.0, V2_BIAS=0.0, IS_SECOND_PASS=False
     )
     two_simplicial_attn_bwd_kv2q_kernel[grid_kv2q](
         Q_r, K_r, Kp_r, V_r, Vp_r, dO_r, M_r, D_row,
@@ -361,7 +361,7 @@ def backward(grad_output, tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_h
         1, N, H, head_dim,
         w1, w2,
         **strides_kv2,
-        HEAD_DIM=head_dim, SM_SCALE=1.0 / (head_dim ** 0.5), K2_BIAS=0.0, V2_BIAS=0.0, num_stages=1, IS_SECOND_PASS=True
+        HEAD_DIM=head_dim, SM_SCALE=1.0 / (head_dim ** 0.5), K2_BIAS=0.0, V2_BIAS=0.0, IS_SECOND_PASS=True
     )
 
     return dQ.view(N, H, head_dim), dK1.view(N, H, head_dim), dV1.view(N, H, head_dim), dK2.view(N, H, head_dim), dV2.view(N, H, head_dim)
