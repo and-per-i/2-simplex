@@ -4,15 +4,16 @@ Fast and Simple: **2-Simplicial Attention** implemented in PyTorch with high-per
 
 ## Overview
 
-This project implements a novel attention mechanism that operates on **simplicial complexes** (triangulations) rather than standard sequences. It extends the attention paradigm to higher-order structures using triple-product attention scores over triangle neighborhoods.
+This project implements a high-performance **2-Simplicial Attention** mechanism designed for geometric reasoning, as explored in recent AlphaGeometry distillations. Unlike traditional graph-based implementations, these **Triton GPU kernels** utilize an efficient **Sliding Window** approach.
+
+Tokens in a sequence (e.g., geometric primitives, proof steps) naturally form 2-simplices with their physical neighbors. A token at position $i$ attends to pairs of tokens in its preceding windows $[i-w_1, i]$ and $[i-w_2, i]$, capturing local trilinear relationships without the overhead of explicit graph adjacency matrices.
 
 ### Key Features
 
-- **2-Simplicial Attention**: High-order attention over (j,k) neighbor pairs using triple-product scoring.
-- **Triton Kernels**: Fully functional, GPU-optimized Forward and Backward kernels.
-- **Mathematical Parity**: Rigorously validated against PyTorch reference implementations (72+ tests passing on CUDA).
-- **Multi-head support**: Configurable number of attention heads.
-- **Residual connections**: Optional residual mapping and LayerNorm.
+- **Sliding Window 2-Simplicial Attention**: Trilinear attention over local temporal/spatial windows.
+- **AlphaGeometry Optimized**: Designed to capture geometric relations (like `cong a b c d`) through sequence locality.
+- **Triton Kernels**: Fully functional, ultra-fast Forward and Backward kernels.
+- **Mathematical Parity**: Rigorously validated against PyTorch reference implementations.
 - **Vanilla PyTorch fallback**: Transparent fallback to standard PyTorch for CPU or non-Triton environments.
 
 ## Project Structure
@@ -54,30 +55,30 @@ pip install triton
 import torch
 from src.models.two_simplicial_attention import TwoSimplicialAttention
 
-# Initialize model with Triton kernels enabled
+# Initialize model with sliding window sizes w1, w2
 model = TwoSimplicialAttention(
     in_dim=32,
     out_dim=64,
     num_heads=4,
+    w1=8,
+    w2=8,
     use_triton_kernel=True
 ).cuda()
 
-# Input: 128 triangles, 32-dim features
-tri_feats = torch.randn(128, 32).cuda()
-# edge_index: (N, max_deg) with -1 padding for neighbors
-edge_index = torch.randint(-1, 128, (128, 8)).cuda()
+# Input: Sequence of 1024 tokens, 32-dim features
+x = torch.randn(1024, 32).cuda()
 
-# Forward pass (uses optimized Triton kernels)
-output = model(tri_feats, edge_index)
-print(output.shape)  # (128, 64)
+# Forward pass (uses optimized Sliding Window Triton kernels)
+output = model(x)
+print(output.shape)  # (1024, 64)
 ```
 
 ## Mathematical Foundation
 
-The core 2-simplicial attention mechanism computes:
+The 2-simplicial attention mechanism computes trilinear scores over a sliding window:
 
 - **Projections**: $Q = XW_Q, K = XW_K, V = XW_V, K' = XW_{K'}, V' = XW_{V'}$
-- **Attention score**: $A_{ijk} = \frac{1}{\sqrt{d}} \langle q_i, k_j \odot k'_k \rangle$
+- **Attention score**: $A_{ijk} = \frac{1}{\sqrt{d}} \langle q_i, k_j \odot k'_k \rangle$ where $j \in [i-w_1, i]$ and $k \in [i-w_2, i]$.
 - **Softmax**: $S_{ijk} = \text{softmax}_{j,k}(A_{ijk})$
 - **Output**: $v_i = \sum_{j,k} S_{ijk} (v_j \odot v'_k)$
 
@@ -105,12 +106,12 @@ pytest tests/core/ -v
 
 ## Status
 
-- [x] Functional 2-Simplicial Attention (PyTorch)
-- [x] Optimized Triton Forward Kernel
-- [x] Optimized Triton Backward Kernel
-- [x] Comprehensive CUDA Test Suite (72/72 Passing)
+- [x] Sliding Window 2-Simplicial Attention (PyTorch)
+- [x] Optimized Triton Forward Kernel (Sliding Window)
+- [x] Optimized Triton Backward Kernel (Sliding Window)
+- [x] Numerical Validation (CUDA)
 - [ ] Multi-Batch Support (currently optimized for $B=1$)
-- [ ] Real-world dataset integration (e.g., Shrec)
+- [ ] AlphaGeometry Distillation Pipeline
 
 ## License
 

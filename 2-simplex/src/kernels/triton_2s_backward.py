@@ -280,7 +280,7 @@ if _check_triton():
         tl.store(dV2_ptr + kv2_offs, dv2.to(data_dtype), kv2_mask)
         tl.store(dQ_ptr + q_offs, dq.to(data_dtype), q_mask)
 
-def backward(grad_output, tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_heads, head_dim, w1=8, w2=8):
+def backward(grad_output, x, Q, K, V, Kp, Vp, out_dim, num_heads, head_dim, w1=8, w2=8):
     """Backward pass entry point."""
     if not _check_triton():
         raise RuntimeError("Triton not available.")
@@ -298,7 +298,7 @@ def backward(grad_output, tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_h
     dO_r = grad_output.view(1, N, H, D).contiguous()
 
     from . import triton_2s_forward
-    O_r, M_r = triton_2s_forward.forward(tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_heads, head_dim, w1, w2)
+    O_r, M_r = triton_2s_forward.forward(x, Q, K, V, Kp, Vp, out_dim, num_heads, head_dim, w1, w2)
     O_r = O_r.view(1, N, H, D).contiguous()
     M_r = M_r.view(1, H, N).contiguous()
 

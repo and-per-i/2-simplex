@@ -148,10 +148,9 @@ def test_model_triton_path_runs():
     model.eval()
 
     tri_feats = torch.randn(N, in_dim, device=device)
-    edge_index = torch.randint(-1, N, (N, 8), device=device)
 
     with torch.no_grad():
-        out = model(tri_feats, edge_index)
+        out = model(tri_feats)
 
     assert out.shape == (N, out_dim)
     assert torch.isfinite(out).all(), "Model Triton output contains non-finite values"

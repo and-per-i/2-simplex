@@ -189,11 +189,11 @@ if _check_triton():
             )
 
 
-def forward(tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_heads, head_dim, w1=8, w2=8):
+def forward(x, Q, K, V, Kp, Vp, out_dim, num_heads, head_dim, w1=8, w2=8):
     if not _check_triton():
         raise RuntimeError("Triton is not available in this environment.")
 
-    N = tri_feats.size(0)
+    N = x.size(0)
     H = num_heads
     D = head_dim
 
@@ -203,8 +203,8 @@ def forward(tri_feats, edge_index, Q, K, V, Kp, Vp, out_dim, num_heads, head_dim
     Kp_r = Kp.view(1, N, H, D).contiguous()
     Vp_r = Vp.view(1, N, H, D).contiguous()
 
-    O = torch.empty((1, N, H, D), device=tri_feats.device, dtype=tri_feats.dtype)
-    M = torch.empty((1, H, N),    device=tri_feats.device, dtype=tri_feats.dtype)
+    O = torch.empty((1, N, H, D), device=x.device, dtype=x.dtype)
+    M = torch.empty((1, H, N),    device=x.device, dtype=x.dtype)
 
     q_stride_b, q_stride_s, q_stride_k, q_stride_h = Q_r.stride()
     strides = {
