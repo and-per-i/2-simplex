@@ -22,7 +22,7 @@ class TwoSimplicialAttention(nn.Module):
         the per-node loop is kept since each node has a variable number of neighbors.
     """
 
-    def __init__(self, in_dim, out_dim=None, num_heads=4, dropout=0.0, with_residual=True, use_triton_kernel=False):
+    def __init__(self, in_dim, out_dim=None, num_heads=4, dropout=0.0, with_residual=True, use_triton_kernel=True):
         super().__init__()
         self.in_dim = int(in_dim)
         self.out_dim = int(out_dim) if out_dim is not None else self.in_dim
@@ -60,10 +60,29 @@ class TwoSimplicialAttention(nn.Module):
         Kp = self.kp_proj(tri_feats).view(N, self.num_heads, self.head_dim)
         Vp = self.vp_proj(tri_feats).view(N, self.num_heads, self.head_dim)
 
-        if edge_index is None:
-            raise ValueError("edge_index must be provided for the MVP forward.")
-        if not isinstance(edge_index, torch.Tensor):
-            raise TypeError("edge_index must be a Tensor of shape (N, max_deg).")
+        # Use optimized Triton path if requested and on CUDA
+        if self.use_triton_kernel and tri_feats.is_cuda:
+            try:
+                # Lazy import; tests/local envs may not have Triton kernel available yet
+                from ..kernels.two_simplicial_autograd import TwoSimplicialAttentionFunction  # type: ignore
+                Z_concat = TwoSimplicialAttentionFunction.apply(
+                    tri_feats, edge_index, Q, K, V, Kp, Vp, self.out_dim, self.num_heads, self.head_dim
+                ).reshape(N, self.out_dim)
+            except Exception:
+                # Fall back to PyTorch MVP if Triton kernel fails or is unavailable
+                Z_concat = self._forward_pytorch(N, Q, K, V, Kp, Vp, edge_index, tri_feats.device)
+        else:
+            # Standard PyTorch path (CPU or explicitly requested)
+            Z_concat = self._forward_pytorch(N, Q, K, V, Kp, Vp, edge_index, tri_feats.device)
+
+        out = self.out_proj(Z_concat)
+        if self.with_residual and out.shape == tri_feats.shape:
+            out = out + tri_feats
+        out = self.norm(out)
+        return out
+
+    def _forward_pytorch(self, N, Q, K, V, Kp, Vp, edge_index, device):
+        """Standard PyTorch implementation (slow loop)."""
         max_deg = edge_index.size(1)
         deg = (edge_index >= 0).sum(dim=1).to(dtype=torch.int64).cpu().tolist()
 
@@ -74,7 +93,7 @@ class TwoSimplicialAttention(nn.Module):
                 Z_rows.append(Q[i])
                 continue
 
-            neigh_i = edge_index[i, :d_i].to(tri_feats.device)
+            neigh_i = edge_index[i, :d_i].to(device)
             K_j = K[neigh_i]    # (d_i, H, D)
             V_j = V[neigh_i]
             Kp_j = Kp[neigh_i]
@@ -98,28 +117,4 @@ class TwoSimplicialAttention(nn.Module):
             Z_rows.append(torch.stack(head_outs))
 
         Z = torch.stack(Z_rows)
-
-        # Optional Triton path (disabled by default). Keeps API stable for future enablement.
-        if self.use_triton_kernel:
-            try:
-                # Lazy import; tests/local envs may not have Triton kernel available yet
-                from ..kernels.two_simplicial_autograd import TwoSimplicialAttentionFunction  # type: ignore
-                y = TwoSimplicialAttentionFunction.apply(
-                    tri_feats, edge_index, Q, K, V, Kp, Vp, self.out_dim, self.num_heads, self.head_dim
-                )
-                Z_concat = y.reshape(N, self.out_dim)
-                out = self.out_proj(Z_concat)
-                if self.with_residual and out.shape == tri_feats.shape:
-                    out = out + tri_feats
-                out = self.norm(out)
-                return out
-            except Exception:
-                # Fall back to PyTorch MVP if Triton kernel is unavailable or fails to load
-                pass
-
-        Z_concat = Z.reshape(N, self.out_dim)
-        out = self.out_proj(Z_concat)
-        if self.with_residual and out.shape == tri_feats.shape:
-            out = out + tri_feats
-        out = self.norm(out)
-        return out
+        return Z.reshape(N, self.out_dim)
