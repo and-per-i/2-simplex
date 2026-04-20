@@ -92,6 +92,14 @@ def run_curriculum():
             batch[key] = torch.tensor(padded_seqs, dtype=torch.long)
         return batch
 
+    # Punto di partenza: usiamo l'ultimo checkpoint finetuned rilevato
+    current_model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../checkpoints_finetuned/checkpoint-9000"))
+    
+    if not os.path.exists(current_model_path):
+        print(f"⚠️ Checkpoint non trovato: {current_model_path}")
+        # Fallback al checkpoint di Phase 2 se il finetuned non esiste
+        current_model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../checkpoints/checkpoint-96000"))
+
     for stage in CURRICULUM:
         level = stage["level"]
         dataset_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", stage["path"]))
