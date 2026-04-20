@@ -258,6 +258,7 @@ class StudentForCausalLM(PreTrainedModel, GenerationMixin):
     """
 
     config_class = StudentConfig
+    supports_gradient_checkpointing = True
 
     def __init__(self, config: StudentConfig):
         super().__init__(config)
@@ -270,6 +271,10 @@ class StudentForCausalLM(PreTrainedModel, GenerationMixin):
         self.post_init()
         # Dopo post_init, esegui il tying esplicitamente
         self.tie_weights()
+
+    def _set_gradient_checkpointing(self, module, value=False):
+        if isinstance(module, StudentModel):
+            module.gradient_checkpointing = value
 
     def get_input_embeddings(self):
         return self.model.embeddings.token_embeddings

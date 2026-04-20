@@ -45,8 +45,51 @@ def main():
     model = StudentForCausalLM.from_pretrained(
         args.model_path,
         config=config,
-        torch_dtype=torch.bfloat16  # Optimized for 5090 (Ampere/Blackwell)
+        torch_dtype=torch.bfloat16,
+        ignore_mismatched_sizes=True # Allow loading even if architecture changed
     ).to(device)
+
+    # --- Weight Mapping Logic (Transition from Standard to Simplicial) ---
+    # If the checkpoint was standard, we need to move weights to simplex_attn
+    if config.use_simplex_attention:
+        print("🔄 Mapping standard attention weights to simplicial attention...")
+        sf_path = os.path.join(args.model_path, "model.safetensors")
+        bin_path = os.path.join(args.model_path, "pytorch_model.bin")
+        
+        if os.path.exists(sf_path):
+            from safetensors.torch import load_file
+            state_dict = load_file(sf_path, device=device)
+        elif os.path.exists(bin_path):
+            state_dict = torch.load(bin_path, map_location=device)
+        else:
+            print("⚠️ Could not find weights file for mapping. Skipping...")
+            state_dict = {}
+
+        if state_dict:
+            current_state = model.state_dict()
+            for i in range(config.num_hidden_layers):
+                old_prefix = f"model.layers.{i}.attention"
+                new_prefix = f"model.layers.{i}.attention.simplex_attn"
+                
+                for proj in ["q_proj", "k_proj", "v_proj"]:
+                    old_key = f"{old_prefix}.{proj}.weight"
+                    new_key = f"{new_prefix}.{proj}.weight"
+                    if old_key in state_dict and new_key in current_state:
+                        current_state[new_key].copy_(state_dict[old_key])
+                
+                # For K' and V', initialize with K and V weights
+                if f"{old_prefix}.k_proj.weight" in state_dict:
+                    current_state[f"{new_prefix}.kp_proj.weight"].copy_(state_dict[f"{old_prefix}.k_proj.weight"])
+                    current_state[f"{new_prefix}.vp_proj.weight"].copy_(state_dict[f"{old_prefix}.v_proj.weight"])
+                
+                # Output projection
+                if f"{old_prefix}.out_proj.weight" in state_dict:
+                    current_state[f"{new_prefix}.out_proj.weight"].copy_(state_dict[f"{old_prefix}.out_proj.weight"])
+                    if f"{old_prefix}.out_proj.bias" in state_dict:
+                        current_state[f"{new_prefix}.out_proj.bias"].copy_(state_dict[f"{old_prefix}.out_proj.bias"])
+
+            model.load_state_dict(current_state)
+            print("✅ Weight mapping completed.")
     
     print(f"✅ Model loaded. Parameters: {sum(p.numel() for p in model.parameters()):,}")
 
