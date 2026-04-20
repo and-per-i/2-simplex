@@ -107,11 +107,23 @@ def main():
         print("❌ Error: Dataset is empty.")
         return
 
-    # 4. Data Collator
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer,
-        mlm=False
-    )
+    # 4. Custom Data Collator for dynamic padding
+    def custom_collator(features):
+        batch = {}
+        # Find max length in this batch
+        max_len = max(len(f["input_ids"]) for f in features)
+        
+        for key in ["input_ids", "attention_mask", "labels"]:
+            padded_seqs = []
+            for f in features:
+                seq = f[key]
+                # Pad with 0 for input_ids/mask, and -100 for labels
+                pad_val = 0 if key != "labels" else -100
+                padded = seq + [pad_val] * (max_len - len(seq))
+                padded_seqs.append(padded)
+            batch[key] = torch.tensor(padded_seqs, dtype=torch.long)
+        
+        return batch
 
     # 5. Training Arguments - Optimized for 5090 (32GB VRAM)
     training_args = TrainingArguments(
@@ -129,14 +141,15 @@ def main():
         push_to_hub=False,
         gradient_checkpointing=True, # Extra safety for memory
         optim="adamw_torch_fused",   # Faster optimizer
+        remove_unused_columns=False, # Important for custom data
     )
 
-    # 6. Initialize Trainer
+    # 6. Initialize Trainer with Custom Collator
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=hard_dataset,
-        data_collator=data_collator,
+        data_collator=custom_collator,
     )
 
     # 7. Start Fine-Tuning
