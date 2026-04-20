@@ -135,7 +135,9 @@ def main():
         num_train_epochs=args.epochs,
         bf16=True,                   # Best for 5090
         fp16=False,
-        save_strategy="epoch",
+        save_strategy="steps",
+        save_steps=1000,             # Save every 1000 steps
+        save_total_limit=3,          # Keep only last 3 checkpoints to save space
         logging_steps=1,             # More frequent logging
         report_to="none",
         push_to_hub=False,
