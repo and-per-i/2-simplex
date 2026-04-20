@@ -226,7 +226,6 @@ class StudentModel(PreTrainedModel):
             [StudentTransformerLayer(config) for _ in range(config.num_hidden_layers)]
         )
         self.final_ln = nn.LayerNorm(config.hidden_size, eps=1e-5)
-        self.gradient_checkpointing = False
         self.post_init()  # chiama _init_weights
 
     def forward(
@@ -259,7 +258,6 @@ class StudentForCausalLM(PreTrainedModel, GenerationMixin):
     """
 
     config_class = StudentConfig
-    supports_gradient_checkpointing = True
 
     def __init__(self, config: StudentConfig):
         super().__init__(config)

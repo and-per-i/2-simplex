@@ -32,6 +32,8 @@ def main():
     # 1. Load Tokenizer
     tokenizer_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../tokenizer/weights/geometry.757.model"))
     tokenizer = load_tokenizer(tokenizer_path)
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token_id = 0 # Default for AlphaGeometry
     print(f"📝 Tokenizer loaded (Vocab: {tokenizer.vocab_size})")
 
     # 2. Load Model (Pre-trained from Phase 2)
