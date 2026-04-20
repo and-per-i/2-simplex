@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "two_simplex"
+name = "2-simplex-geometry"
 version = "0.1.0"
 description = "2-Simplicial Attention for Geometric Proofs"
 dependencies = [

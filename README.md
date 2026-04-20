@@ -1,4 +1,4 @@
-# 2-Simplex
+# 2-Simplex Geometry
 
 Fast and Simple: **2-Simplicial Attention** implemented in PyTorch with high-performance **Triton GPU kernels**.
 
@@ -37,8 +37,8 @@ Tokens in a sequence (e.g., geometric primitives, proof steps) naturally form 2-
 
 ```bash
 # Clone the repository
-git clone https://github.com/and-per-i/2-simplex.git
-cd 2-simplex
+git clone https://github.com/and-per-i/2-simplex-geometry.git
+cd 2-simplex-geometry
 
 # Install dependencies
 pip install -r requirements.txt
@@ -110,8 +110,9 @@ pytest tests/core/ -v
 - [x] Optimized Triton Forward Kernel (Sliding Window)
 - [x] Optimized Triton Backward Kernel (Sliding Window)
 - [x] Numerical Validation (CUDA)
+- [x] AlphaGeometry Distillation Pipeline (Fine-Tuning started)
+- [x] Large Scale Geometric Dataset Balancing (2M samples)
 - [ ] Multi-Batch Support (currently optimized for $B=1$)
-- [ ] AlphaGeometry Distillation Pipeline
 
 ## License
 
