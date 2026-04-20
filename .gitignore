@@ -41,13 +41,15 @@ Thumbs.db
 .ipynb_checkpoints/
 
 # Data (handled by LFS)
-# data/
+data/**/*.parquet
 
 # Checkpoints (handled by LFS)
-# checkpoints/
-# *.pt
-# *.pth
-# *.ckpt
+# Permettiamo i file piccoli di config, ma tracciamo i pesi con LFS
+checkpoints/**/*.safetensors
+checkpoints/**/*.bin
+checkpoints/**/*.pt
+checkpoints_curriculum/**/*.safetensors
+checkpoints_curriculum/**/*.bin
 
 # Logs
 *.log
@@ -76,5 +78,5 @@ dmypy.json
 # Pyright
 .pyright_cache/
 
-# Local checkpoints
-checkpoints_finetuned/
+# Local checkpoints (now handled by LFS if tracked, or ignored if transient)
+# checkpoints_finetuned/
