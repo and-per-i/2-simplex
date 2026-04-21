@@ -60,8 +60,8 @@ class PlateauHandlerCallback(TrainerCallback):
 # --- 2. Curriculum Configuration ---
 # Definisci qui l'ordine dei dataset da affrontare
 CURRICULUM = [
-    {"level": "difficult", "path": "data/difficult/balanced_dataset_part_1.parquet"},
-    {"level": "difficult_p2", "path": "data/difficult/balanced_dataset_part_2.parquet"}
+    {"level": "very_easy", "path": "data/very_easy/very_easy_500k.parquet"},
+    {"level": "easy",      "path": "data/easy/easy_medium_500k.parquet"}
 ]
 
 def run_curriculum():
@@ -125,7 +125,7 @@ def run_curriculum():
 
         attempts = 0
         max_attempts_per_level = 2
-        base_lr = 1.5e-4
+        base_lr = 2.0e-4
 
         while attempts < max_attempts_per_level:
             # Calcolo LR: Dimezza ad ogni tentativo sullo stesso livello
@@ -152,7 +152,7 @@ def run_curriculum():
                 max_length=config.max_position_embeddings
             )
 
-            plateau_callback = PlateauHandlerCallback(window_size=20, threshold=0.001, patience=50)
+            plateau_callback = PlateauHandlerCallback(window_size=20, threshold=0.001, patience=100)
 
             training_args = TrainingArguments(
                 output_dir=output_dir,
