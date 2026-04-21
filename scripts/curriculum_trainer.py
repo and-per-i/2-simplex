@@ -89,22 +89,29 @@ def run_curriculum():
             batch[key] = torch.tensor(padded_seqs, dtype=torch.long)
         return batch
 
-    # --- Punto di Partenza: Auto-rilevamento dell'ultimo checkpoint del livello MIXED ---
-    base_mixed_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../checkpoints_curriculum/mixed_try_1"))
-    
-    if os.path.exists(base_mixed_path):
-        checkpoints = [d for d in os.listdir(base_mixed_path) if d.startswith("checkpoint-")]
-        if checkpoints:
-            latest = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))[-1]
-            current_model_path = os.path.join(base_mixed_path, latest)
-            print(f"🔄 Auto-detected MIXED checkpoint: {latest}")
-        else:
-            current_model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../checkpoints_finetuned/checkpoint-9000"))
-    else:
-        # Fallback al checkpoint di Phase 2 se il finetuned non esiste
+    # --- Punto di Partenza: Auto-rilevamento dell'ULTIMO checkpoint assoluto in curriculum ---
+    curriculum_base = os.path.abspath(os.path.join(os.path.dirname(__file__), "../checkpoints_curriculum"))
+    current_model_path = None
+
+    if os.path.exists(curriculum_base):
+        all_checkpoints = []
+        for root, dirs, files in os.walk(curriculum_base):
+            for d in dirs:
+                if d.startswith("checkpoint-"):
+                    full_path = os.path.join(root, d)
+                    all_checkpoints.append(full_path)
+        
+        if all_checkpoints:
+            # Prende il checkpoint con la data di modifica più recente
+            current_model_path = max(all_checkpoints, key=os.path.getmtime)
+            print(f"🔄 Auto-detected LATEST curriculum checkpoint: {current_model_path}")
+
+    # Fallback se non trova nulla in curriculum
+    if not current_model_path or not os.path.exists(current_model_path):
         current_model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../checkpoints_finetuned/checkpoint-9000"))
         if not os.path.exists(current_model_path):
             current_model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../checkpoints/checkpoint-96000"))
+        print(f"⚠️ No curriculum checkpoints found. Falling back to: {current_model_path}")
 
     print(f"🎯 Starting training from: {current_model_path}")
 
