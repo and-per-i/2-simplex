@@ -168,7 +168,7 @@ def load_model(device):
     model.eval()
     return model, tok
 
-def run_depth_search_for_problem(fname, model, tok, device):
+def run_depth_search_for_problem(fname, model, tok, device, max_depth=5):
     trans_dir = ROOT_DIR / "imo_translated"
     raw_dir = ROOT_DIR / "imo_ag_30"
     
@@ -178,81 +178,60 @@ def run_depth_search_for_problem(fname, model, tok, device):
     points, assumes, proves = parse_ag_file(raw_dir / fname)
     initial_prompt = ag_to_model_prompt(points, assumes, proves)
     
-    print(f"\n📝 Analisi: {fname}")
+    print(f"\n📝 Analisi: {fname} (Max Depth={max_depth})")
     
-    # ------------------ DEPTH 1 ------------------
-    print("   [Depth 1] Generazione costruzioni...")
-    suggs_d1 = get_model_suggestions(model, tok, initial_prompt, device, k=64, temp=0.9)
-    valid_d1 = []
+    # Nodi = [(sugg_chain_string, aug_jgex, prompt)]
+    current_nodes = [("", jgex_str, initial_prompt)]
     
-    jgex_setup, jgex_goal = jgex_str.split("?")
-    
-    for sugg in suggs_d1:
-        newclid_sugg = translate_suggestion_to_newclid(sugg)
-        if newclid_sugg:
-            aug_jgex = f"{jgex_setup.strip()} {newclid_sugg} ? {jgex_goal.strip()}"
-            valid_d1.append((sugg, aug_jgex, initial_prompt))
+    for depth in range(1, max_depth + 1):
+        print(f"   [Depth {depth}] Generazione espansioni da {len(current_nodes)} nodi...")
+        next_candidates = []
+        
+        for sugg_chain, jgex, prompt in current_nodes:
+            # Piu k al depth 1, meno k ai successivi per contenere l'esplosione combinatoria
+            k_val = 64 if depth == 1 else 16
+            suggs = get_model_suggestions(model, tok, prompt, device, k=k_val, temp=0.9)
             
-    if not valid_d1:
-        print("   [Depth 1] Nessuna costruzione sintatticamente valida generata.")
-        return False
+            jgex_setup, jgex_goal = jgex.split("?")
+            for sugg in suggs:
+                newclid_sugg = translate_suggestion_to_newclid(sugg)
+                if newclid_sugg:
+                    aug_jgex = f"{jgex_setup.strip()} {newclid_sugg} ? {jgex_goal.strip()}"
+                    new_prompt = append_suggestion_to_prompt(prompt, sugg)
+                    new_chain = f"{sugg_chain} -> {sugg}" if sugg_chain else sugg
+                    next_candidates.append((new_chain, aug_jgex, new_prompt))
+                    
+        if not next_candidates:
+            print(f"   [Depth {depth}] Nessuna costruzione valida generata. Fine ramo.")
+            return False
+            
+        print(f"   [Depth {depth}] Test di {len(next_candidates)} rami composti con DDARN...")
+        tasks = [(item[1], 15, i) for i, item in enumerate(next_candidates)]
+        num_cores = max(1, mp.cpu_count())
         
-    print(f"   [Depth 1] Trovati {len(valid_d1)} rami validi. Verifica con DDARN...")
-    tasks_d1 = [(item[1], 15, i) for i, item in enumerate(valid_d1)]
-    num_cores = max(1, mp.cpu_count())
-    
-    try:
-        from tqdm import tqdm
-        iterator = tqdm(mp.Pool(num_cores).imap_unordered(solve_worker, tasks_d1), total=len(tasks_d1), desc="D1", leave=False)
-    except ImportError:
-        iterator = mp.Pool(num_cores).imap_unordered(solve_worker, tasks_d1)
-        
-    for success, task_id, _ in iterator:
-        if success:
-            print(f"   ✅ [Depth 1] DIMOSTRATO!!! Costruzione: {valid_d1[task_id][0]}")
-            return True
-
-    # ------------------ DEPTH 2 ------------------
-    print("   [Depth 2] Nessun successo. Espansione dei rami validi (Depth=2)...")
-    tasks_d2 = []
-    
-    # Prendiamo al massimo i primi 16 rami validi del Depth 1 per evitare esplosioni
-    top_d1 = valid_d1[:16]
-    
-    for sugg_d1, aug_jgex_d1, prompt_d1 in top_d1:
-        prompt_d2 = append_suggestion_to_prompt(prompt_d1, sugg_d1)
-        suggs_d2 = get_model_suggestions(model, tok, prompt_d2, device, k=16, temp=0.9)
-        
-        jgex_setup_d2, jgex_goal_d2 = aug_jgex_d1.split("?")
-        for sugg in suggs_d2:
-            newclid_sugg = translate_suggestion_to_newclid(sugg)
-            if newclid_sugg:
-                aug_jgex_d2 = f"{jgex_setup_d2.strip()} {newclid_sugg} ? {jgex_goal_d2.strip()}"
-                tasks_d2.append((aug_jgex_d2, 15, len(tasks_d2)))
+        try:
+            from tqdm import tqdm
+            iterator = tqdm(mp.Pool(num_cores).imap_unordered(solve_worker, tasks), total=len(tasks), desc=f"D{depth}", leave=False)
+        except ImportError:
+            iterator = mp.Pool(num_cores).imap_unordered(solve_worker, tasks)
+            
+        for success, task_id, _ in iterator:
+            if success:
+                print(f"\n   ✅✅ [Depth {depth}] DIMOSTRATO!!! 🏆")
+                print(f"   Catena risolutiva: {next_candidates[task_id][0]}")
+                return True
                 
-    if not tasks_d2:
-        print("   [Depth 2] Nessuna costruzione di livello 2 valida.")
-        return False
-        
-    print(f"   [Depth 2] Trovati {len(tasks_d2)} rami composti validi. Verifica con DDARN...")
-    try:
-        from tqdm import tqdm
-        iterator = tqdm(mp.Pool(num_cores).imap_unordered(solve_worker, tasks_d2), total=len(tasks_d2), desc="D2", leave=False)
-    except ImportError:
-        iterator = mp.Pool(num_cores).imap_unordered(solve_worker, tasks_d2)
-        
-    for success, task_id, aug_jgex in iterator:
-        if success:
-            print(f"   ✅✅ [Depth 2] DIMOSTRATO!!! Soluzione concatenata trovata!")
-            print(f"   {aug_jgex}")
-            return True
+        print(f"   ❌ [Depth {depth}] Nessun successo.")
+        if depth < max_depth:
+            print("   Tengo i migliori 16 rami per espanderli al prossimo livello...")
+            current_nodes = next_candidates[:16]
 
-    print("   ❌ Fallito anche a Depth 2.")
+    print(f"   ❌ Fallito anche a Depth {max_depth}.")
     return False
 
 def main():
     print("="*80)
-    print("🚀 MIRACOLO IMO: RICERCA AD ALBERO (DEPTH=2) SU TUTTO IL BENCHMARK")
+    print("🚀 MIRACOLO IMO: BEAM SEARCH (DEPTH=5) SU TUTTO IL BENCHMARK")
     print("="*80)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
