@@ -1,0 +1,1 @@
+c a b = triangle c a b; d = on_tline d c a b, on_line d a b; x = on_line x c d; k = on_line k a x, on_circle k b c; l = on_line l b x, on_circle l a c; m = on_line m a l, on_line m b k ? cong m k m l

@@ -1,0 +1,1 @@
+a b c = triangle a b c; o = eqdistance o a o b, eqdistance o b o c; r = on_circle r o a, eqdistance r a r b; l = on_line l c a, eqdistance l c l a; k = on_line k c b, eqdistance k c k b; p = on_line p o k, on_line p c r; q = on_line q o l, on_line q c r; l1 = on_tline l1 l c r, on_line l1 c r; k1 = on_tline k1 k c r, on_line k1 c r ? eqratio k k1 l l1 r q r p

@@ -1,0 +1,1 @@
+a b c = triangle a b c; a1 = on_line a1 b c; b1 = on_line b1 a c; p = on_line p a a1; q = on_line q b b1, on_pline q p a b; p1 = on_line p1 p b1; q1 = on_line q1 q a1 ? cyclic p q p1 q1

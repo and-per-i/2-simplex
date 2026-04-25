@@ -1,0 +1,1 @@
+p = free p; a = free a; b = free b; x = free x; y = free y; z = free z; t = free t; d = on_line d a z; u v = segment u v; c = on_line c b u; o = free o ? cong o a o b

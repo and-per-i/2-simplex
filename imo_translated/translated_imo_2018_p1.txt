@@ -1,0 +1,1 @@
+a b c = triangle a b c; o = eqdistance o a o b, eqdistance o b o c; d = on_line d a b; e = on_line e a c, on_circle e a d; f = eqdistance f b f d, on_circle f o a; g = eqdistance g e g c, on_circle g o a ? para d e f g

@@ -1,0 +1,1 @@
+r s = segment r s; t = on_line t r s, on_circle t s r; o = eqdistance o r o s; j = on_circle j o s; o1 = eqdistance o1 j o1 s, eqdistance o1 s o1 t; a = on_tline a r o r, on_circle a o1 s; b = on_tline b r o r, on_circle b o1 s; k = on_line k j a, on_circle k o s ? perp k t o1 t

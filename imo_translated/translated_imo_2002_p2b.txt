@@ -1,0 +1,1 @@
+b c = segment b c; o = on_line o b c, eqdistance o b o c; a = on_circle a o b; d = on_circle d o b, eqdistance d a d b; e = eqdistance e o e a, on_circle e o b; f = eqdistance f o f a, on_circle f o b; j = on_pline j o a d, on_line j a c ? equal_angles e c j j c f

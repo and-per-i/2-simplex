@@ -1,0 +1,1 @@
+a = free a; b = free b; c = free c; d = free d; e = on_line e a c; f = on_line f a b; x = eqdistance x b x c, on_line x a c; o1 = eqdistance o1 a o1 d, eqdistance o1 d o1 c; o2 = eqdistance o2 e o2 x, eqdistance o2 x o2 d; y = on_line y e f, on_line y b c ? coll o1 o2 y

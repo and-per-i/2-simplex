@@ -1,0 +1,1 @@
+s c = segment s c; p = on_circle p s c; o = on_tline o c s c; a = on_circle a o c; b = on_circle b o c, on_line b s a; m = on_line m c p, on_circle m o c; l = on_line l b p, on_circle l o c; k = on_line k a p, on_circle k o c ? cyclic b k l m

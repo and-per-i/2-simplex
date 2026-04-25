@@ -1,0 +1,1 @@
+a b z = triangle a b z; f = eqdistance f a f b; c = on_tline c b f b, on_line c a f; d = on_line d a z, eqdistance d a d c; e = eqdistance e a e d; m = on_line m c f, eqdistance m c m f; x = free x; y = on_line y f x, on_line y e m ? coll y b d

@@ -1,0 +1,1 @@
+a b c = triangle a b c; o = eqdistance o a o b, eqdistance o b o c; d = on_circle d o a; p = free p ? cong a p c p

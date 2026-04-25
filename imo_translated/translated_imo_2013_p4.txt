@@ -1,0 +1,1 @@
+a b c = triangle a b c; h = on_tline h a b c, on_tline h b c a; m = on_line m h b, on_line m a c; n = on_line n h c, on_line n a b; w = on_line w b c; o1 = eqdistance o1 b o1 n, eqdistance o1 n o1 w; o2 = eqdistance o2 c o2 m, eqdistance o2 m o2 w; x = on_line x o1 w, on_circle x o1 w; y = on_line y o2 w, on_circle y o2 w ? coll x h y

@@ -1,0 +1,1 @@
+a b c = triangle a b c; p = on_line p b c; q = on_line q b c; m = on_line m a p, on_circle m p a; n = on_line n a q, on_circle n q a; x = on_line x b m, on_line x c n; o = eqdistance o a o b, eqdistance o b o c ? cong o x o a

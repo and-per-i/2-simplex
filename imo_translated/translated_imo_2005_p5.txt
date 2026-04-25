@@ -1,0 +1,1 @@
+a b c = triangle a b c; d = eqdistance d a b c; e = on_line e b c; f = on_line f a d, eqdistance f d e b; p = on_line p a c, on_line p b d; q = on_line q e f, on_line q b d; r = on_line r e f, on_line r a c; o1 = eqdistance o1 a o1 p, eqdistance o1 p o1 d; o2 = eqdistance o2 b o2 p, eqdistance o2 p o2 c; m = on_circle m o1 p, on_circle m o2 p ? cyclic p q r m
