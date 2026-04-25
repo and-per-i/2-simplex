@@ -17,6 +17,24 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from student_progressive import StudentModelProgressive
 from tokenizer.hf_tokenizer import load_tokenizer
 
+def generate_text(model, input_ids, max_new_tokens, eos_token_id):
+    """Semplice generazione auto-regressiva (greedy decoding)"""
+    device = input_ids.device
+    
+    for _ in range(max_new_tokens):
+        with torch.no_grad():
+            out = model(input_ids)
+            
+        logits = out["logits"] if isinstance(out, dict) else out
+        next_token_logits = logits[:, -1, :]
+        next_token = torch.argmax(next_token_logits, dim=-1).unsqueeze(-1)
+        
+        input_ids = torch.cat([input_ids, next_token], dim=-1)
+        if next_token.item() == eos_token_id:
+            break
+            
+    return input_ids
+
 def main():
     print("="*60)
     print("  VERIFICA LEARNING — Modello 8 Layer (Clean Syntax)")
@@ -70,18 +88,14 @@ def main():
         input_ids = inputs["input_ids"].to(device)
         
         print("\n⏳ Generazione in corso...")
-        with torch.no_grad():
-            out_ids = model.generate(
-                input_ids=input_ids,
-                max_new_tokens=150,
-                num_beams=5,
-                early_stopping=True,
-                repetition_penalty=1.2,
-                pad_token_id=tok.pad_token_id,
-                eos_token_id=tok.eos_token_id
-            )
+        out_ids = generate_text(
+            model=model, 
+            input_ids=input_ids, 
+            max_new_tokens=150, 
+            eos_token_id=tok.eos_token_id
+        )
             
-        generated_text = tok.decode(out_ids[0], skip_special_tokens=True)
+        generated_text = tok.decode(out_ids[0].tolist(), skip_special_tokens=True)
         
         print("\n✨ OUTPUT GENERATO:")
         print(generated_text)
