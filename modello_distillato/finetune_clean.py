@@ -77,9 +77,12 @@ class FinetuneDataset(Dataset):
 
         logger.info(f"Dataset: {len(texts):,} campioni da {parquet_path}")
 
+        from tqdm import tqdm
         self.examples = []
         skipped = 0
-        for text in texts:
+        
+        logger.info("Tokenizzazione in corso (potrebbe richiedere 5-10 minuti per 500k esempi)...")
+        for text in tqdm(texts, desc="Tokenizing"):
             enc = tokenizer(
                 text,
                 truncation=True,
