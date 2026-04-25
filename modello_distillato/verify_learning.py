@@ -69,15 +69,21 @@ def main():
     model.to(device)
     model.eval()
 
-    # 3. Test Prompts (nel formato pulito!)
-    # Niente XML, niente bracket numerici, sintassi esatta
+    # 3. Test Prompts (usando i token nativi 00, 01, etc. e spazio finale!)
     prompts = [
-        # Test 1: Triangolo con punti medi (Teorema: segmento dei punti medi è parallelo alla base)
-        "a : ; b : ; c : ; d : coll a b d cong a d b d ; e : coll a c e cong a e c e ? para d e b c",
+        # Test 1: Triangolo con punti medi -> segmento parallelo alla base
+        "a : ; b : ; c : ; d : 00 a b d 01 a d b d ; e : 00 a c e 01 a e c e ? 03 d e b c ",
         
         # Test 2: Angoli alla base di triangolo isoscele
-        "a : ; b : ; c : cong a b a c ; d : coll b c d ? eqangle a b c a c b"
+        "a : ; b : ; c : 01 a b a c ; d : 00 b c d ? 05 a b c a c b "
     ]
+    
+    # Mappa inversa per rendere l'output leggibile
+    REVERSE_MAP = {
+        '00': 'coll', '01': 'cong', '02': 'perp', '03': 'para',
+        '04': 'midpoint', '05': 'eqangle', '06': 'eqratio', '07': 'sameclock',
+        '08': 'sameside', '09': 'simtri', '10': 'contri', '11': 'cyclic', '12': 'circle'
+    }
 
     print("\n" + "—"*60)
     for i, p in enumerate(prompts):
@@ -97,6 +103,11 @@ def main():
             
         generated_text = tok.decode(out_ids[0].tolist(), skip_special_tokens=True)
         
+        # Traduci di nuovo nei termini inglesi
+        import re
+        for num, eng in REVERSE_MAP.items():
+            generated_text = re.sub(r'\b' + num + r'\b', eng, generated_text)
+            
         print("\n✨ OUTPUT GENERATO:")
         print(generated_text)
         print("—"*60)

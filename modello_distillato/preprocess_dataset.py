@@ -39,15 +39,33 @@ def clean_sample(question: str, solution: str) -> str:
     #    In formato lineare non servono (l'ordine sequenziale li sostituisce).
     text = re.sub(r'\[\d{3}\]', '', text)
 
-    # 3. Rimuovi "sameclock", "sameside" e altri predicati di check numerico
-    #    (sono verifiche interne, non parte della prova formale)
+    # 3. Rimuovi sameclock, sameside, etc. (check numerici inutili per il proof simbolico)
     text = re.sub(r'(sameclock|sameside|samecirc|diff)\s+[a-z\s]+;', '', text)
 
-    # 4. Normalizza whitespace multipli → singolo spazio
+    # 4. Traduci i predicati in inglese nei token nativi di AlphaGeometry (00-12)
+    PREDICATE_MAP = {
+        r'\bcoll\b': '00',
+        r'\bcong\b': '01',
+        r'\bperp\b': '02',
+        r'\bpara\b': '03',
+        r'\bmidpoint\b': '04',
+        r'\beqangle\b': '05',
+        r'\beqratio\b': '06',
+        r'\bsameclock\b': '07',
+        r'\bsameside\b': '08',
+        r'\bsimtri\b': '09',
+        r'\bcontri\b': '10',
+        r'\bcyclic\b': '11',
+        r'\bcircle\b': '12',
+    }
+    for eng, num in PREDICATE_MAP.items():
+        text = re.sub(eng, num, text)
+
+    # 5. Normalizza whitespace multipli → singolo spazio
     text = re.sub(r'[ \t]+', ' ', text)
     text = re.sub(r'\n+', '\n', text)
 
-    # 5. Rimuovi righe vuote
+    # 6. Rimuovi righe vuote
     lines = [line.strip() for line in text.splitlines() if line.strip()]
 
     return ' '.join(lines)
