@@ -70,12 +70,15 @@ def main():
     model.eval()
 
     # 3. Test Prompts (usando i token nativi 00, 01, etc. e spazio finale!)
+    # IMPORTANTE: Aggiungiamo 'x00 ' alla fine perché è il token che nel dataset
+    # indica sempre l'inizio della dimostrazione. Senza di questo il modello
+    # non sa di dover cominciare a dimostrare e si incastra!
     prompts = [
         # Test 1: Triangolo con punti medi -> segmento parallelo alla base
-        "a : ; b : ; c : ; d : 00 a b d 01 a d b d ; e : 00 a c e 01 a e c e ? 03 d e b c ",
+        "a : ; b : ; c : ; d : 00 a b d 01 a d b d ; e : 00 a c e 01 a e c e ? 03 d e b c x00 ",
         
         # Test 2: Angoli alla base di triangolo isoscele
-        "a : ; b : ; c : 01 a b a c ; d : 00 b c d ? 05 a b c a c b "
+        "a : ; b : ; c : 01 a b a c ; d : 00 b c d ? 05 a b c a c b x00 "
     ]
     
     # Mappa inversa per rendere l'output leggibile
