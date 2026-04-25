@@ -81,7 +81,8 @@ def get_curriculum():
 CURRICULUM = get_curriculum()
 
 def run_curriculum():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
+    print(f"🎯 Usando device: {device.upper()}")
     
     # Percorsi base
     tokenizer_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../tokenizer/weights/geometry.757.model"))

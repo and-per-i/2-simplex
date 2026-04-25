@@ -26,7 +26,7 @@ class JGEXProblemBuilder(ProblemBuilder):
         self,
         rng: RngGenerator | int | None = None,
         problem: JGEXFormulation | None = None,
-        max_attempts_per_clause: int = 5,
+        max_attempts_per_clause: int = 20,
     ) -> None:
         self.jgex_problem = problem
         self.rng = setup_rng(rng)
@@ -62,6 +62,8 @@ class JGEXProblemBuilder(ProblemBuilder):
                     valid_problem_setup = problem_setup
                     self._clauses_consequences = clauses_consequences
                     break
+                else:
+                    last_error = JGEXConstructionError(f"Attempt {_attempt}: nc_problem_is_valid returned False (Numerical check failed)")
             except JGEXConstructionError as e:
                 LOGGER.debug(
                     f"Failed to build a valid problem setup (attempt {_attempt}): {e}"
@@ -71,7 +73,7 @@ class JGEXProblemBuilder(ProblemBuilder):
 
         if valid_problem_setup is None:
             raise ValueError(
-                f"Failed to build a valid problem setup for {self.jgex_problem.name} after {max_attempts_to_satisfy_goals_numerically} attempts. Last error: {last_error}"
+                f"Failed to build a valid problem setup for '{self.jgex_problem.name}' after {max_attempts_to_satisfy_goals_numerically} attempts. Last error: {last_error}"
             ) from last_error
 
         return valid_problem_setup
