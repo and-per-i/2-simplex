@@ -83,11 +83,14 @@ class FinetuneDataset(Dataset):
             enc = tokenizer(
                 text,
                 truncation=True,
-                max_length=max_length,
+                max_length=max_length - 1,
                 padding=False,
                 return_tensors=None,
             )
             ids = enc["input_ids"]
+            # IMPORTANTE: Aggiungiamo l'EOS token così impara a fermarsi!
+            ids.append(tokenizer.eos_token_id)
+            
             if len(ids) < 4:          # scarta sequenze troppo corte
                 skipped += 1
                 continue
