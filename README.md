@@ -104,6 +104,18 @@ To run only the core PyTorch logic (CPU compatible):
 pytest tests/core/ -v
 ```
 
+## Neuro-Symbolic Architecture & Test-Time Compute
+
+This repository implements a state-of-the-art **Neuro-Symbolic** search pipeline inspired by AlphaGeometry, designed to solve complex International Mathematical Olympiad (IMO) geometry problems through **Test-Time Compute**.
+
+The system pairs the neural intuition of our **2-Simplicial Transformer** with the infallible logical rigor of **Newclid/DDARN** (a fast symbolic deduction engine). 
+
+### The Strategy: Massively Parallel Beam Search
+1. **Pass@N (Massive Sampling):** The 2-Simplex neural model generates thousands of auxiliary constructions (e.g., $k=2048$) at a high temperature (`Temp=0.9`). This prompts the model to "hallucinate" creative geometric topologies.
+2. **GPU Batch Generation:** Leveraging PyTorch batched inference, the GPU computes thousands of geometric hypotheses in milliseconds.
+3. **Symbolic Sieve:** The hypotheses are fed to a massive multi-processing CPU cluster (e.g., 128-core AMD EPYC). The DDARN symbolic engine evaluates them in parallel, instantly discarding illegal or useless constructions, keeping only mathematically sound deduction paths.
+4. **Iterative Deepening:** If a problem requires multiple auxiliary steps, the system feeds the successful intermediate points back into the Transformer, recursing up to `Depth 3`. This creates a dynamic search tree that evaluates thousands of complex logical chains.
+
 ## Status
 
 - [x] Sliding Window 2-Simplicial Attention (PyTorch)
