@@ -32,7 +32,7 @@ def get_quotient(v: Any) -> Fraction:
     d = 1
     while not close_enough(n, round(n)):
         d += 1
-        n += v
+        n = v * d
         if d > MAX_DENOMINATOR:
             e = InfQuotientError(v)
             raise e
@@ -49,11 +49,12 @@ def atomize(s: str, split_by: Optional[str] = None) -> tuple[str, ...]:
 def str_to_fraction(s: str) -> Fraction:
     if "pi/" in s:
         ns, ds = s.split("pi/")
-        n, d = int(ns), int(ds)
+        n = int(ns) if ns else 1
+        d = int(ds)
         if d < 0:
             n, d = -n, -d
         return Fraction(n % d, d)
-    elif "o" in s:
+    elif "o" in s and len(s) > 1:
         n = int(s[:-1])
         d = 180
         return Fraction(n % d, d)

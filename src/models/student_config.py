@@ -36,7 +36,7 @@ class StudentConfig(PretrainedConfig):
 
     def __init__(
         self,
-        vocab_size: int = 757,          # Allineato al tokenizer AlphaGeometry
+        vocab_size: int = 1024,          # Allineato al vocabolario Newclid/AlphaGeometry (padded)
         hidden_size: int = 512,
         num_hidden_layers: int = 6,
         num_attention_heads: int = 8,

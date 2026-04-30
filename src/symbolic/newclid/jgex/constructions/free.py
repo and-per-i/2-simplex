@@ -31,7 +31,7 @@ FREE = JGEXDefinition(
     name=JGEXConstructionName.FREE,
     args=(v("a"),),
     rely_on_points={v("a"): ()},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=(),
     sketches=(
         SketchConstruction(name=sketch_function_name(sketch_free.__name__), args=()),
@@ -45,7 +45,7 @@ SEGMENT = JGEXDefinition(
     name=JGEXConstructionName.SEGMENT,
     args=(v("a"), v("b")),
     rely_on_points={},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=(),
     sketches=(
         SketchConstruction(
@@ -61,7 +61,7 @@ BETWEEN = JGEXDefinition(
     name=JGEXConstructionName.BETWEEN,
     args=(v("c"), v("a"), v("b")),
     rely_on_points={},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("coll a b c, obtuse_angle a c b"),
     sketches=(
         SketchConstruction(name=sketch_function_name(sketch_between.__name__), args=()),
@@ -76,7 +76,7 @@ TRIANGLE = JGEXDefinition(
     name=JGEXConstructionName.TRIANGLE,
     args=(v("a"), v("b"), v("c")),
     rely_on_points={},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=(),
     sketches=(
         SketchConstruction(
@@ -91,7 +91,7 @@ R_TRIANGLE = JGEXDefinition(
     name=JGEXConstructionName.R_TRIANGLE,
     args=(v("a"), v("b"), v("c")),
     rely_on_points={v("c"): (v("a"), v("b"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("perp a b a c"),
     sketches=(
         SketchConstruction(
@@ -106,7 +106,7 @@ ACUTE_TRIANGLE = JGEXDefinition(
     name=JGEXConstructionName.ACUTE_TRIANGLE,
     args=(v("a"), v("b"), v("c")),
     rely_on_points={},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=(),
     sketches=(
         SketchConstruction(
@@ -123,7 +123,7 @@ ISO_TRIANGLE = JGEXDefinition(
     name=JGEXConstructionName.ISO_TRIANGLE,
     args=(v("a"), v("b"), v("c")),
     rely_on_points={v("c"): (v("a"), v("b"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("eqangle b a b c c b c a, cong a b a c"),
     sketches=(
         SketchConstruction(name=sketch_function_name(sketch_isos.__name__), args=()),
@@ -137,7 +137,7 @@ ISO_TRIANGLE0 = JGEXDefinition(
     name=JGEXConstructionName.ISO_TRIANGLE0,
     args=(v("a"), v("b"), v("c")),
     rely_on_points={v("c"): (v("a"), v("b"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("cong a b a c"),
     sketches=(
         SketchConstruction(name=sketch_function_name(sketch_isos.__name__), args=()),
@@ -151,7 +151,7 @@ IEQ_TRIANGLE = JGEXDefinition(
     name=JGEXConstructionName.IEQ_TRIANGLE,
     args=(v("a"), v("b"), v("c")),
     rely_on_points={v("c"): (v("a"), v("b"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str(
         "cong a b b c, cong b c c a; eqangle a b a c c a c b, eqangle c a c b b c b a"
     ),
@@ -168,7 +168,7 @@ TRIANGLE12 = JGEXDefinition(
     name=JGEXConstructionName.TRIANGLE12,
     args=(v("a"), v("b"), v("c")),
     rely_on_points={v("c"): (v("a"), v("b"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("rconst a b a c 1/2"),
     sketches=(
         SketchConstruction(
@@ -183,7 +183,7 @@ RISOS = JGEXDefinition(
     name=JGEXConstructionName.RISOS,
     args=(v("a"), v("b"), v("c")),
     rely_on_points={v("c"): (v("a"), v("b"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("perp a b a c, cong a b a c; eqangle b a b c c b c a"),
     sketches=(
         SketchConstruction(name=sketch_function_name(sketch_risos.__name__), args=()),
@@ -208,7 +208,7 @@ QUADRANGLE = JGEXDefinition(
     name=JGEXConstructionName.QUADRANGLE,
     args=(v("a"), v("b"), v("c"), v("d")),
     rely_on_points={},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=(),
     sketches=(
         SketchConstruction(
@@ -225,7 +225,7 @@ RECTANGLE = JGEXDefinition(
     name=JGEXConstructionName.RECTANGLE,
     args=(v("a"), v("b"), v("c"), v("d")),
     rely_on_points={v("c"): (v("a"), v("b")), v("d"): (v("a"), v("b"), v("c"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str(
         "c : perp a b b c ; d : para a b c d, para a d b c; perp a b a d, cong a b c d, cong a d b c, cong a c b d"
     ),
@@ -243,7 +243,7 @@ ISQUARE = JGEXDefinition(
     name=JGEXConstructionName.ISQUARE,
     args=(v("a"), v("b"), v("c"), v("d")),
     rely_on_points={v("c"): (v("a"), v("b")), v("d"): (v("a"), v("b"), v("c"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str(
         "c : perp a b b c, cong a b b c; d : para a b c d, para a d b c; perp a d d c, cong b c c d, cong c d d a, perp a c b d, cong a c b d"
     ),
@@ -259,7 +259,7 @@ TRAPEZOID = JGEXDefinition(
     name=JGEXConstructionName.TRAPEZOID,
     args=(v("a"), v("b"), v("c"), v("d")),
     rely_on_points={v("d"): (v("a"), v("b"), v("c"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("para a b c d"),
     sketches=(
         SketchConstruction(
@@ -274,7 +274,7 @@ R_TRAPEZOID = JGEXDefinition(
     name=JGEXConstructionName.R_TRAPEZOID,
     args=(v("a"), v("b"), v("c"), v("d")),
     rely_on_points={v("d"): (v("a"), v("b"), v("c"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("para a b c d, perp a b a d"),
     sketches=(
         SketchConstruction(
@@ -290,7 +290,7 @@ ISO_TRAPEZOID = JGEXDefinition(
     name=JGEXConstructionName.ISO_TRAPEZOID,
     args=(v("a"), v("b"), v("c"), v("d")),
     rely_on_points={v("d"): (v("a"), v("b"), v("c"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("para d c a b, cong d a b c"),
     sketches=(
         SketchConstruction(
@@ -306,7 +306,7 @@ EQ_QUADRANGLE = JGEXDefinition(
     name=JGEXConstructionName.EQ_QUADRANGLE,
     args=(v("a"), v("b"), v("c"), v("d")),
     rely_on_points={v("d"): (v("a"), v("b"), v("c"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("cong d a b c"),
     sketches=(
         SketchConstruction(
@@ -321,7 +321,7 @@ EQDIA_QUADRANGLE = JGEXDefinition(
     name=JGEXConstructionName.EQDIA_QUADRANGLE,
     args=(v("a"), v("b"), v("c"), v("d")),
     rely_on_points={v("d"): (v("a"), v("b"), v("c"))},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=JGEXClause.from_str("cong d b a c"),
     sketches=(
         SketchConstruction(
@@ -349,7 +349,7 @@ PENTAGON = JGEXDefinition(
     name=JGEXConstructionName.PENTAGON,
     args=(v("a"), v("b"), v("c"), v("d"), v("e")),
     rely_on_points={},
-    requirements=JGEXClause.from_str("")[0],
+    requirements=JGEXClause.from_str("")[0] if JGEXClause.from_str("") else (),
     clauses=(),
     sketches=(
         SketchConstruction(

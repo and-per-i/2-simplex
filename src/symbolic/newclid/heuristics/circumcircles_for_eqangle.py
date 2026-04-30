@@ -102,6 +102,7 @@ class ThreeCircumcirclesForEqangleGoalHeuristic(Heuristic):
                 )
             else:
                 added_points.append(center_1)
+                centers.append(center_1)
                 new_clause_string = f"{center_1} = circle {center_1} {vertices[1]} {vertices[2]} {vertices[0]}"
                 new_clause = JGEXClause.from_str(new_clause_string)[0]
                 new_clauses.append(new_clause)
@@ -113,6 +114,7 @@ class ThreeCircumcirclesForEqangleGoalHeuristic(Heuristic):
                 )
             else:
                 added_points.append(center_2)
+                centers.append(center_2)
                 new_clause_string = f"{center_2} = circle {center_2} {vertices[1]} {vertices[2]} {vertices[3]}"
                 new_clause = JGEXClause.from_str(new_clause_string)[0]
                 new_clauses.append(new_clause)

@@ -95,7 +95,15 @@ class GeometryTranslator:
 
     def setup_point_map(self, prompt: str):
         """Extracts points from prompt and maps indices to names."""
-        initial_points = re.findall(r'\b([a-z])\b', prompt.split('?')[0])
+        # Extract points: words that are not predicates (perp, para, etc.)
+        # Supports multi-character names like A1, AB
+        keywords = {'coll', 'cong', 'perp', 'para', 'midpoint', 'eqangle', 'eqratio', 
+                    'sameclock', 'sameside', 'simtri', 'contri', 'cyclic', 'circle', 'triangle'}
+        all_words = re.findall(r'\b([a-z][a-z0-9]*)\b', prompt.split('?')[0].lower())
+        initial_points = [w for w in all_words if w not in keywords]
+        # Remove duplicates while preserving order
+        seen = set()
+        initial_points = [x for x in initial_points if not (x in seen or seen.add(x))]
         self.point_map = {}
         
         # Map 0, 1, 2... and 00, 01, 02... to point names

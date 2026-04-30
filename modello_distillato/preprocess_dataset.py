@@ -40,7 +40,8 @@ def clean_sample(question: str, solution: str) -> str:
     text = re.sub(r'\[\d{3}\]', '', text)
 
     # 3. Rimuovi sameclock, sameside, etc. (check numerici inutili per il proof simbolico)
-    text = re.sub(r'(sameclock|sameside|samecirc|diff)\s+[a-z\s]+;', '', text)
+    # [a-z0-9\s]+? è non-greedy per fermarsi al PRIMO ';'
+    text = re.sub(r'(sameclock|sameside|samecirc|diff)\s+[a-z0-9\s]+?;', '', text)
 
     # 4. Traduci i predicati in inglese nei token nativi di AlphaGeometry (00-12)
     PREDICATE_MAP = {

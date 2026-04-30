@@ -14,4 +14,8 @@ def make_agent(agent_name: str | AgentName, **kwargs: Any) -> DeductiveAgent:
         case AgentName.HUMAN_AGENT:
             return HumanAgent()
         case AgentName.FOLLOW_DEDUCTIONS:
+            if "deductions_provider" not in kwargs:
+                raise KeyError(
+                    "Missing 'deductions_provider' in kwargs for FOLLOW_DEDUCTIONS agent."
+                )
             return FollowDeductions(deductions_provider=kwargs["deductions_provider"])

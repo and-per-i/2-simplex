@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel
@@ -41,8 +41,8 @@ class DDARN(DeductiveAgent):
     """
 
     def __init__(self) -> None:
-        self.rule_buffer: list[Rule] = []
-        self.exausted = False
+        self.rule_buffer: deque[Rule] = deque()
+        self.exhausted = False
         self.level = 0
         self.level_timer = time.time()
         self.proven_by_levels: dict[int, list[Justification]] = defaultdict(list)
@@ -59,11 +59,11 @@ class DDARN(DeductiveAgent):
         if proof.check_goals():
             return False
         if self.rule_buffer:
-            next_rule = self.rule_buffer.pop(0)
+            next_rule = self.rule_buffer.popleft()
             self._match_and_apply_rule(next_rule, proof=proof)
         else:
             self._wrap_up_level(proof)
-            if self.exausted:
+            if self.exhausted:
                 return False
             self._new_level(rules)
         return True
@@ -86,7 +86,7 @@ class DDARN(DeductiveAgent):
     def _apply_dep(self, proof: ProofState, dep: Justification) -> None:
         if proof.apply(dep):
             self.proven_by_levels[self.level].append(dep)
-            self.exausted = False
+            self.exhausted = False
 
     def _wrap_up_level(self, proof: ProofState) -> None:
         dd_level_time = time.time() - self.level_timer
@@ -104,8 +104,8 @@ class DDARN(DeductiveAgent):
         self.dd_cumulative_time += dd_level_time
 
     def _new_level(self, rules: list[Rule]) -> None:
-        self.exausted = True
-        self.rule_buffer = list(rules)
+        self.exhausted = True
+        self.rule_buffer = deque(rules)
         self.level += 1
         self.level_timer = time.time()
 

@@ -62,8 +62,6 @@ def _apply_command_effect(
             _add_tangency_elements_from_tangent_on_circle_command(command, lines)
         case GGBReadCommandType.TangentOutsideCircle:
             _add_tangency_elements_from_tangent_outside_circle_command(command, lines)
-        case GGBReadCommandType.AngularBisectorPoints:
-            _add_vertex_to_bisector_from_angular_bisector_command(command, lines)
         case _:
             pass
 
@@ -155,7 +153,7 @@ def _add_points_bisecting_lines_from_bisector_command(
 def _add_bisecting_angles_from_bisector_command(
     command: GGBAngularBisectorPointsCommand, lines: dict[str, GGBLine]
 ) -> None:
-    lines[command.line_bisector].points.extend(command.corner)
+    lines[command.line_bisector].points.append(command.corner)
 
 
 def _add_tangency_elements_from_tangent_on_circle_command(
@@ -164,10 +162,6 @@ def _add_tangency_elements_from_tangent_on_circle_command(
     lines[command.tangent_line].points.append(command.point_on_tangent)
 
 
-def _add_vertex_to_bisector_from_angular_bisector_command(
-    command: GGBAngularBisectorLinesCommand, lines: dict[str, GGBLine]
-) -> None:
-    lines[command.line_bisector].points.extend(command.corner)
 
 
 def _add_tangency_elements_from_tangent_outside_circle_command(

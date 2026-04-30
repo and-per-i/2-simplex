@@ -67,5 +67,5 @@ def _merge_one(
 
     other_rep.representent = self_rep
     self_rep.fellows.update(other_rep.fellows)
-    other_rep.fellows.update(symbol.fellows)
+    other_rep.fellows.update(self_rep.fellows)
     return self_rep

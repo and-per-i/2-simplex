@@ -18,7 +18,7 @@ from tokenizer.hf_tokenizer import load_tokenizer
 from newclid.api import GeometricSolverBuilder, PythonDefault
 from newclid.jgex.formulation import JGEXFormulation
 from newclid.jgex.problem_builder import JGEXProblemBuilder
-import signal
+# import signal
 
 PREDICATE_MAP = {
     'coll': '00', 'cong': '01', 'perp': '02', 'para': '03',
@@ -29,11 +29,12 @@ PREDICATE_MAP = {
 REVERSE_MAP = {v: k for k, v in PREDICATE_MAP.items()}
 
 def solve_worker(task):
+    import threading
+    import _thread
     aug_jgex, timeout, task_id = task
-    def handler(signum, frame):
-        raise TimeoutError()
-    signal.signal(signal.SIGALRM, handler)
-    signal.alarm(timeout)
+    
+    timer = threading.Timer(timeout, lambda: _thread.interrupt_main())
+    timer.start()
     
     try:
         initial_problem = JGEXFormulation.from_text(aug_jgex)
@@ -42,11 +43,13 @@ def solve_worker(task):
         api_def = PythonDefault(use_sympy_ar=False)
         solver = GeometricSolverBuilder(api_default=api_def).build(setup)
         success = solver.run()
-        signal.alarm(0)
         return (success, task_id, aug_jgex)
-    except Exception:
-        signal.alarm(0)
+    except (KeyboardInterrupt, TimeoutError):
         return (False, task_id, aug_jgex)
+    except Exception:
+        return (False, task_id, aug_jgex)
+    finally:
+        timer.cancel()
 
 def ag_to_model_prompt(points, assumes, proves):
     target_assumes = {p: [] for p in points}
@@ -102,6 +105,7 @@ def get_model_suggestions(model, tok, prompt, device, k=1024, temp=0.9, batch_si
     for i in range(0, k, batch_size):
         bsz = min(batch_size, k - i)
         input_ids = base_input_ids.repeat(bsz, 1)
+        prompt_len = base_input_ids.shape[1]
         finished = torch.zeros(bsz, dtype=torch.bool, device=device)
         
         for _ in range(30):
@@ -120,8 +124,7 @@ def get_model_suggestions(model, tok, prompt, device, k=1024, temp=0.9, batch_si
             if finished.all(): break
                 
         for b in range(bsz):
-            decoded = tok.decode(input_ids[b].tolist(), skip_special_tokens=True)
-            gen = decoded[len(prompt):].strip()
+            gen = tok.decode(input_ids[b, prompt_len:].tolist(), skip_special_tokens=True)
             for num, eng in REVERSE_MAP.items():
                 gen = re.sub(r'\b' + num + r'\b', eng, gen)
                 
@@ -191,6 +194,7 @@ def append_suggestion_to_prompt(prompt, sugg):
     target = parts[1]
     args = [p for p in parts[2:] if len(p) <= 2]
     mapped_pred = PREDICATE_MAP.get(pred, pred)
+    if not args: return prompt
     new_clause = f"{target} : {mapped_pred} {' '.join(args)}"
     
     setup, goal = prompt.split("?")
@@ -206,8 +210,10 @@ def load_model(device):
     # Real 2-Simplicial Model
     config = StudentConfig(
         vocab_size=1024, 
-        hidden_size=512, 
-        num_hidden_layers=6, 
+        hidden_size=384, 
+        intermediate_size=1536,
+        max_position_embeddings=512,
+        num_hidden_layers=8, 
         use_simplex_attention=True,
         w1=8,
         w2=8

@@ -5,7 +5,13 @@ REL_TOL = 0.001
 
 
 def close_enough(a: float, b: float) -> bool:
-    return abs(a - b) < 4 * ATOM or abs(a - b) / max(abs(a), abs(b)) < REL_TOL
+    diff = abs(a - b)
+    if diff < 4 * ATOM:
+        return True
+    max_val = max(abs(a), abs(b))
+    if max_val < 4 * ATOM:
+        return True
+    return diff / max_val < REL_TOL
 
 
 def nearly_zero(a: float) -> bool:

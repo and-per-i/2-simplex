@@ -79,7 +79,12 @@ class MappingMatcher(RuleMatcher):
 
             applicable = True
             for premise in rule.premises:
-                premise_args = tuple(mapping[arg] for arg in premise.variables)
+                try:
+                    premise_args = tuple(mapping[arg] for arg in premise.variables)
+                except KeyError as e:
+                    LOGGER.warning(f"Variable {e} not found in mapping {mapping} for rule {rule.fullname}")
+                    applicable = False
+                    break
                 premise_predicate_construction = (
                     PredicateConstruction.from_predicate_type_and_args(
                         PredicateType(premise.name), premise_args
@@ -110,7 +115,11 @@ class MappingMatcher(RuleMatcher):
                 continue
 
             for conclusion in rule.conclusions:
-                conclusion_args = tuple(mapping[arg] for arg in conclusion.variables)
+                try:
+                    conclusion_args = tuple(mapping[arg] for arg in conclusion.variables)
+                except KeyError as e:
+                    LOGGER.warning(f"Variable {e} not found in mapping {mapping} for rule {rule.fullname}")
+                    continue
                 conclusion_predicate_construction = (
                     PredicateConstruction.from_predicate_type_and_args(
                         PredicateType(conclusion.name), conclusion_args
@@ -335,8 +344,7 @@ def iterate_mapping_with_complementary_assignments(
     for mapping_of_remaining_variables in generate_permutations_as_dicts(  # type: ignore
         points, remaining_variables_in_theorem
     ):
-        mapping.update(mapping_of_remaining_variables)  # type: ignore
-        yield mapping
+        yield {**mapping, **mapping_of_remaining_variables}  # type: ignore
 
 
 SYMBOLIC_PREDICATE_TYPES_NAMES = {

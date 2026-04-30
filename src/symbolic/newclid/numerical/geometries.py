@@ -54,7 +54,7 @@ class PointNum(BaseModel):
     def __str__(self) -> str:
         return "PointNum({},{})".format(self.x, self.y)
 
-    def __abs__(self) -> str:
+    def __abs__(self) -> float:
         return np.sqrt(self.dot(self))
 
     def angle(self) -> float:

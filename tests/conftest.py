@@ -21,7 +21,7 @@ def config():
     cfg = _load_yaml_config(os.path.join(os.path.dirname(__file__), "config.yaml"))
     # If the dedicated config.yaml in tests/config.yaml is preferred, fall back to it
     if cfg is None:
-        cfg = _load_yaml_config(os.path.join(os.path.dirname(__file__), "../tests/config.yaml"))
+        cfg = _load_yaml_config(os.path.join(os.path.dirname(__file__), "../configs/config.yaml"))
     return cfg
 
 

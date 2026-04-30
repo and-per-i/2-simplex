@@ -70,30 +70,38 @@ def main():
         if state_dict:
             current_state = model.state_dict()
             for i in range(config.num_hidden_layers):
-                old_prefix = f"model.layers.{i}.attention"
-                new_prefix = f"model.layers.{i}.attention.simplex_attn"
+                prefix = f"layers.{i}.attention"
                 
-                # Projections weights and biases
-                for proj in ["q_proj", "k_proj", "v_proj", "out_proj"]:
-                    for suffix in ["weight", "bias"]:
-                        old_key = f"{old_prefix}.{proj}.{suffix}"
-                        new_key = f"{new_prefix}.{proj}.{suffix}"
-                        if old_key in state_dict and new_key in current_state:
-                            current_state[new_key].copy_(state_dict[old_key])
+                # Projections mapping (Old names -> New Names)
+                mapping = {
+                    "q_proj": "W_Q",
+                    "k_proj": "W_K",
+                    "v_proj": "W_V",
+                    "out_proj": "W_O"
+                }
                 
-                # For K' and V', initialize with K and V weights/biases
-                if f"{old_prefix}.k_proj.weight" in state_dict:
-                    current_state[f"{new_prefix}.kp_proj.weight"].copy_(state_dict[f"{old_prefix}.k_proj.weight"])
-                    if f"{old_prefix}.k_proj.bias" in state_dict:
-                         current_state[f"{new_prefix}.kp_proj.bias"].copy_(state_dict[f"{old_prefix}.k_proj.bias"])
+                for old_p, new_p in mapping.items():
+                    old_key = f"model.{prefix}.{old_p}.weight" # Checkpoint had model.layers...
+                    new_key = f"{prefix}.{new_p}.weight"       # New is layers...
+                    
+                    if old_key in state_dict and new_key in current_state:
+                        current_state[new_key].copy_(state_dict[old_key])
+                        print(f"  Mapped {old_key} -> {new_key}")
+                    
+                    # Also try without 'model.' prefix in checkpoint
+                    elif old_key.replace("model.", "") in state_dict:
+                        current_state[new_key].copy_(state_dict[old_key.replace("model.", "")])
                 
-                if f"{old_prefix}.v_proj.weight" in state_dict:
-                    current_state[f"{new_prefix}.vp_proj.weight"].copy_(state_dict[f"{old_prefix}.v_proj.weight"])
-                    if f"{old_prefix}.v_proj.bias" in state_dict:
-                         current_state[f"{new_prefix}.vp_proj.bias"].copy_(state_dict[f"{old_prefix}.v_proj.bias"])
+                # Initialize W_K_prime from K weights if not present
+                if f"W_K_prime.weight" in current_state and f"layers.{i}.attention.W_K_prime.weight" in current_state:
+                    # If checkpoint has kp_proj (rare), use it, otherwise use K
+                    if f"model.{prefix}.kp_proj.weight" in state_dict:
+                         current_state[f"{prefix}.W_K_prime.weight"].copy_(state_dict[f"model.{prefix}.kp_proj.weight"])
+                    elif f"model.{prefix}.k_proj.weight" in state_dict:
+                         current_state[f"{prefix}.W_K_prime.weight"].copy_(state_dict[f"model.{prefix}.k_proj.weight"])
 
             model.load_state_dict(current_state)
-            print("✅ Weight mapping completed (including biases).")
+            print("✅ Weight mapping completed.")
     
     print(f"✅ Model loaded. Parameters: {sum(p.numel() for p in model.parameters()):,}")
 

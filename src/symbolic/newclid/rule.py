@@ -144,7 +144,10 @@ def rules_from_txt(text: str) -> list[Rule]:
 
 def _rule_from_string(s: str, description: str = "") -> Rule:
     premises, conclusions = atomize(s, "=>")
-    id, description = description.split(" ", 1)
+    if " " in description:
+        id, description = description.split(" ", 1)
+    else:
+        id, description = description, ""
     return Rule(
         id=id,
         description=description,

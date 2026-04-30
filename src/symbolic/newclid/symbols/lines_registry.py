@@ -110,7 +110,7 @@ class LinesRegistry:
         line = self.create_line_thru_points(points_set, because=justification)
         merge_symbols(
             self._merge_history[line],
-            [self._merge_history[line] for line in merged],
+            [self._merge_history[l] for l in merged],
             self._lines,
         )
         return line, merged

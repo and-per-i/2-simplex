@@ -21,10 +21,10 @@ class DeductiveAgent(ABC):
 
     @abstractmethod
     def step(self, proof: ProofState, rules: list[Rule]) -> bool:
-        """Perform a single reasoning step on the given proof with given rules, and return if the agent is exausted.
+        """Perform a single reasoning step on the given proof with given rules, and return if the agent is exhausted.
 
         Returns:
-            True if the agent is considered exausted, False otherwise.
+            True if the agent is considered exhausted, False otherwise.
         """
 
     def get_stats(self) -> AgentStats | None:

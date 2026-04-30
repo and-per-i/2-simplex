@@ -97,32 +97,46 @@ def read_geometric_objects_from_predicate_constructions(
             case _:
                 pass
 
-    merged_lines: list[LineHeuristic] = []
-    skipped_lines_indexes: set[int] = set()
-    for i, line1 in enumerate(lines):
-        if i in skipped_lines_indexes:
-            continue
-        for j in range(i, len(lines)):
-            have_two_points_in_common = (
-                len(set(line1.points) & set(lines[j].points)) > 1
-            )
-            if have_two_points_in_common:
-                merged_line = tuple(set(line1.points) | set(lines[j].points))
-                skipped_lines_indexes.add(j)
-                merged_lines.append(LineHeuristic(points=merged_line))
+    def merge_objects(objects, min_common):
+        # Transitive merge of objects (lines or circles)
+        # nodes are indices of objects, edges if they share >= min_common points
+        n = len(objects)
+        if n == 0:
+            return []
+        
+        adj = [[] for _ in range(n)]
+        for i in range(n):
+            for j in range(i + 1, n):
+                if len(set(objects[i].points) & set(objects[j].points)) >= min_common:
+                    adj[i].append(j)
+                    adj[j].append(i)
+        
+        visited = [False] * n
+        merged = []
+        for i in range(n):
+            if not visited[i]:
+                component = []
+                stack = [i]
+                visited[i] = True
+                while stack:
+                    curr = stack.pop()
+                    component.append(curr)
+                    for neighbor in adj[curr]:
+                        if not visited[neighbor]:
+                            visited[neighbor] = True
+                            stack.append(neighbor)
+                
+                # Combine all points in this component
+                all_points = set()
+                for idx in component:
+                    all_points.update(objects[idx].points)
+                merged.append(tuple(all_points))
+        return merged
 
-    merged_circles: list[CircleHeuristic] = []
-    skipped_circles_indexes: set[int] = set()
-    for i, circle1 in enumerate(circles):
-        if i in skipped_circles_indexes:
-            continue
-        for j in range(i, len(circles)):
-            have_three_points_in_common = (
-                len(set(circle1.points) & set(circles[j].points)) > 2
-            )
-            if have_three_points_in_common:
-                merged_circle = tuple(set(circle1.points) | set(circles[j].points))
-                skipped_circles_indexes.add(j)
-                merged_circles.append(CircleHeuristic(points=merged_circle))
+    final_merged_lines = merge_objects(lines, 2)
+    merged_lines = [LineHeuristic(points=p) for p in final_merged_lines]
+
+    final_merged_circles = merge_objects(circles, 3)
+    merged_circles = [CircleHeuristic(points=p) for p in final_merged_circles]
 
     return merged_lines, merged_circles, angles, free_points

@@ -288,12 +288,9 @@ def circle_perms(stmt: CircleStatement) -> Iterator[CircleStatement]:
 def triangle_perms(stmt: TriangleStatement) -> Iterator[TriangleStatement]:
     pts = stmt[1:]
     a, b, c, p, q, r = pts
-    for (a1, a2, a3), (p1, p2, p3) in zip(
-        itertools.permutations((a, b, c), 3),
-        itertools.permutations((p, q, r), 3),
-    ):
-        yield TriangleStatement("simtri", a1, a2, a3, p1, p2, p3)
-        yield TriangleStatement("simtri", p1, p2, p3, a1, a2, a3)
+    for (a1, a2, a3) in itertools.permutations((a, b, c), 3):
+        for (p1, p2, p3) in itertools.permutations((p, q, r), 3):
+            yield TriangleStatement(stmt.name, a1, a2, a3, p1, p2, p3)
 
 
 def normalize_triangle(stmt_pts: TriangleStatement) -> TriangleStatement:

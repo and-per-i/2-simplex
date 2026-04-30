@@ -171,7 +171,13 @@ class GeometricSolverBuilder:
         self.deductors: list[Deductor] | None = None
         self.deductive_agent: DeductiveAgent | None = None
         self.rule_matcher: Optional[RuleMatcher] = None
-        self.rules: list[Rule] = sorted(DEFAULT_RULES, key=lambda r: r.id)
+        def rule_sort_key(rule: Rule):
+            # Extract numeric part of id (e.g., 'r92' -> 92)
+            import re
+            match = re.search(r'\d+', rule.id)
+            return int(match.group()) if match else rule.id
+            
+        self.rules: list[Rule] = sorted(DEFAULT_RULES, key=rule_sort_key)
         self.api_default = (
             api_default if api_default is not None else _load_api_default()
         )

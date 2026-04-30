@@ -123,8 +123,9 @@ class System1Dataset(Dataset):
         input_ids = input_encoding["input_ids"]
         
         # Truncate input from the LEFT (preserve recent context)
+        max_input_len = max(0, max_input_len)
         if len(input_ids) > max_input_len:
-            input_ids = input_ids[-max_input_len:]
+            input_ids = input_ids[-max_input_len:] if max_input_len > 0 else []
             
         # Combine IDs
         full_input_ids = input_ids + target_ids

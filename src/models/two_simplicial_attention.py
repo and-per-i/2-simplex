@@ -37,18 +37,19 @@ class TwoSimplicialAttention(nn.Module):
         self.w1 = w1
         self.w2 = w2
 
-        # Projections
-        self.q_proj = nn.Linear(self.in_dim, self.out_dim, bias=True)
-        self.k_proj = nn.Linear(self.in_dim, self.out_dim, bias=True)
-        self.v_proj = nn.Linear(self.in_dim, self.out_dim, bias=True)
-        self.kp_proj = nn.Linear(self.in_dim, self.out_dim, bias=True)
-        self.vp_proj = nn.Linear(self.in_dim, self.out_dim, bias=True)
+        # Projections (Aligned with checkpoint names)
+        self.W_Q = nn.Linear(self.in_dim, self.out_dim, bias=False)
+        self.W_K = nn.Linear(self.in_dim, self.out_dim, bias=False)
+        self.W_V = nn.Linear(self.in_dim, self.out_dim, bias=False)
+        self.W_K_prime = nn.Linear(self.in_dim, self.out_dim, bias=False)
+        self.W_O = nn.Linear(self.out_dim, self.out_dim, bias=False)
+        
+        # alpha coefficient from checkpoint (scalar)
+        self.alpha = nn.Parameter(torch.tensor(0.5))
+        self.dropout = nn.Dropout(self.dropout)
+        self.norm = nn.LayerNorm(self.out_dim) if with_norm else nn.Identity()
 
-        self.out_proj = nn.Linear(self.out_dim, self.out_dim, bias=True)
-        self.norm = nn.LayerNorm(self.out_dim)
-        self.drop = nn.Dropout(self.dropout)
-
-    def forward(self, x):
+    def forward(self, x, attention_mask=None):
         """
         x: Tensor of shape (B, S, in_dim) or (N, in_dim)
         Returns: Tensor of shape (B, S, out_dim) or (N, out_dim)
@@ -62,11 +63,11 @@ class TwoSimplicialAttention(nn.Module):
             N, _ = x.shape
             B, S = 1, N
 
-        Q = self.q_proj(x).view(B, S, self.num_heads, self.head_dim)
-        K = self.k_proj(x).view(B, S, self.num_heads, self.head_dim)
-        V = self.v_proj(x).view(B, S, self.num_heads, self.head_dim)
-        Kp = self.kp_proj(x).view(B, S, self.num_heads, self.head_dim)
-        Vp = self.vp_proj(x).view(B, S, self.num_heads, self.head_dim)
+        Q = self.W_Q(x).view(B, S, self.num_heads, self.head_dim)
+        K = self.W_K(x).view(B, S, self.num_heads, self.head_dim)
+        V = self.W_V(x).view(B, S, self.num_heads, self.head_dim)
+        Kp = self.W_K_prime(x).view(B, S, self.num_heads, self.head_dim)
+        Vp = V # Shared V in basic configuration
 
         # Use optimized Triton path if requested and on CUDA
         if self.use_triton_kernel and x.is_cuda:
@@ -78,20 +79,24 @@ class TwoSimplicialAttention(nn.Module):
             except Exception as e:
                 # Robust fallback for any Triton/CUDA error (OOM, shape mismatch, etc.)
                 print(f"⚠️ [TwoSimplicialAttention] Triton kernel failed, falling back to PyTorch: {e}")
-                Z = self._forward_pytorch(Q, K, V, Kp, Vp)
+                Z = self._forward_pytorch(Q, K, V, Kp, Vp, attention_mask=attention_mask)
         else:
-            Z = self._forward_pytorch(Q, K, V, Kp, Vp)
+            Z = self._forward_pytorch(Q, K, V, Kp, Vp, attention_mask=attention_mask)
 
         Z_concat = Z.reshape(x.shape[0:-1] + (self.out_dim,))
-        out = self.out_proj(Z_concat)
+        out = self.W_O(Z_concat)
         
-        if self.with_residual and out.shape == x.shape:
-            out = out + x
+        if self.with_residual:
+            if out.shape == x.shape:
+                out = out + x
+            else:
+                import logging
+                logging.warning(f"Residual skipped in TwoSimplicialAttention: shape mismatch {out.shape} vs {x.shape}")
         if self.with_norm:
             out = self.norm(out)
         return out
 
-    def _forward_pytorch(self, Q, K, V, Kp, Vp):
+    def _forward_pytorch(self, Q, K, V, Kp, Vp, attention_mask=None):
         """Vectorized PyTorch implementation with Strictly Causal Sliding Window."""
         B, S, H, D = Q.shape
         device = Q.device
@@ -105,9 +110,6 @@ class TwoSimplicialAttention(nn.Module):
                 tensor
             ], dim=1)
             # 2. Unfold on the sequence dimension (dim 1)
-            # Result shape: (B, S, H, D, window_size)
-            # Index i on dim 1 gives padded[:, i:i+window_size, :, :]
-            # which ends at original tensor index i.
             return padded.unfold(1, window_size, 1).permute(0, 1, 4, 2, 3)
 
         K_win = get_causal_windows(K, self.w1)   # (B, S, w1, H, D)
@@ -119,8 +121,6 @@ class TwoSimplicialAttention(nn.Module):
         A = torch.einsum('bshd,bsjhd,bskhd->bshjk', Q, K_win, Kp_win) / (D ** 0.5)
 
         # Mask padding (zeros at the beginning of the sequence)
-        # For sequence position s, the window contains w elements.
-        # Elements at window index j are valid if s - (w - 1 - j) >= 0
         j_idx = torch.arange(self.w1, device=device).view(1, 1, self.w1)
         s_idx = torch.arange(S, device=device).view(1, S, 1)
         mask1 = j_idx >= (self.w1 - 1 - s_idx) # (1, S, w1)
@@ -131,8 +131,12 @@ class TwoSimplicialAttention(nn.Module):
         mask = (mask1.unsqueeze(3) & mask2.unsqueeze(2)).unsqueeze(2) # (1, S, 1, w1, w2)
         A = A.masked_fill(~mask, float('-inf'))
 
+        if attention_mask is not None:
+            # Mask out padding tokens
+            A = A.masked_fill(attention_mask.view(B, S, 1, 1, 1) == 0, float('-inf'))
+
         S_attn = F.softmax(A.reshape(B, S, H, -1), dim=-1).reshape(B, S, H, self.w1, self.w2)
-        S_attn = self.drop(S_attn)
+        S_attn = self.dropout(S_attn)
 
         # Z[b, s, h, d] = sum_{j,k} S[b, s, h, j, k] * (V_win[b, s, j, h, d] * Vp_win[b, s, k, h, d])
         Z = torch.einsum('bshjk,bsjhd,bskhd->bshd', S_attn, V_win, Vp_win)

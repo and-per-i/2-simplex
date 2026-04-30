@@ -50,11 +50,15 @@ class HumanAgent(DeductiveAgent):
             return None
         if choice == "none":
             return None
-        n = int(choice)
-        return options[n]
+        try:
+            n = int(choice)
+            return options[n]
+        except (ValueError, IndexError):
+            print("Invalid choice.")
+            return None
 
     def step(self, proof: ProofState, rules: list[Rule]) -> bool:
-        exausted = False
+        exhausted = False
         match_rules = [
             NamedFunction(
                 f"match {theorem.fullname}: {theorem}",
@@ -90,16 +94,16 @@ class HumanAgent(DeductiveAgent):
                 allow_none=True,
             )
             if selected is None:
-                return not exausted
+                return not exhausted
             selected.function()
             if selected.name == "stop":
-                exausted = True
+                exhausted = True
         if proof.check_goals():
             print("All the goals are proven")
         else:
             for goal in proof.goals:
                 print(f"{goal} proven? {proof.check(goal)}")
-        return not exausted
+        return not exhausted
 
     def match(self, match_rules: list[NamedFunction]) -> None:
         selected = self.select(match_rules, allow_none=True)
@@ -164,6 +168,6 @@ class HumanAgent(DeductiveAgent):
             )
             if selected is None:
                 return
-            return selected.function
+            return selected.function()
 
         return fn

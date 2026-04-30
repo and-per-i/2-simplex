@@ -17,7 +17,7 @@ from tokenizer.hf_tokenizer import load_tokenizer
 from newclid.api import GeometricSolverBuilder, PythonDefault
 from newclid.jgex.formulation import JGEXFormulation
 from newclid.jgex.problem_builder import JGEXProblemBuilder
-import signal
+# import signal
 
 PREDICATE_MAP = {
     'coll': '00', 'cong': '01', 'perp': '02', 'para': '03',
@@ -71,10 +71,11 @@ def ag_to_model_prompt(points, assumes, proves):
     return setup_str + goal_str
 
 def solve_with_newclid(problem_str, timeout=10):
-    def handler(signum, frame):
-        raise TimeoutError()
-    signal.signal(signal.SIGALRM, handler)
-    signal.alarm(timeout)
+    import threading
+    import _thread
+    
+    timer = threading.Timer(timeout, lambda: _thread.interrupt_main())
+    timer.start()
     
     try:
         initial_problem = JGEXFormulation.from_text(problem_str)
@@ -83,13 +84,13 @@ def solve_with_newclid(problem_str, timeout=10):
         api_def = PythonDefault(use_sympy_ar=False)
         solver = GeometricSolverBuilder(api_default=api_def).build(setup)
         success = solver.run()
-        signal.alarm(0)
         return success
-    except TimeoutError:
+    except (KeyboardInterrupt, TimeoutError):
         return False
     except Exception as e:
-        signal.alarm(0)
         return False
+    finally:
+        timer.cancel()
 
 @torch.inference_mode()
 def get_model_suggestions(model, tok, prompt, device, k=3):
@@ -169,7 +170,8 @@ def translate_suggestion_to_newclid(suggestion):
 
 def optimize_for_m4(model, device):
     model.to(device)
-    model.half()
+    if device.type == "cuda":
+        model.half()
     model.eval()
     return model
 
@@ -188,8 +190,10 @@ def main():
     tok = load_tokenizer(str(tok_path), vocab_size=1024)
     config = StudentConfig(
         vocab_size=1024, 
-        hidden_size=512, 
-        num_hidden_layers=6, 
+        hidden_size=384, 
+        intermediate_size=1536,
+        max_position_embeddings=512,
+        num_hidden_layers=8, 
         use_simplex_attention=True,
         w1=8,
         w2=8

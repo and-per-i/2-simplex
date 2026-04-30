@@ -141,7 +141,7 @@ class ProofState:
     def check_goals(self) -> bool:
         """Check if the goals are all symbolically checked."""
         if not self.goals:
-            return False
+            return True
         for goal in self.goals:
             if not self.check(goal):
                 return False
@@ -179,7 +179,8 @@ class ProofState:
                 goal, points_registry=self.symbols.points
             )
             if goal_predicate is None:
-                continue
+                LOGGER.warning(f"Goal '{goal}' cannot be built and will be skipped (possibly causing vacuous truth).")
+                raise ProofBuildError(f"Goal '{goal}' cannot be built.")
             if not self.check_numerical(goal_predicate):
                 raise ProofBuildError(f"Goal {goal} is numerically false.")
             goals.append(goal_predicate)

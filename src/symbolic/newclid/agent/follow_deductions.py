@@ -151,7 +151,8 @@ class FollowDeductions(DeductiveAgent):
         for new_dep in self.deps_of_deduction[next_deduction]:
             LOGGER.debug(f"Proved by following deduction: {new_dep}")
             _success = proof.apply(new_dep)
-            self._stats.n_deductions_followed += 1
+            if _success:
+                self._stats.n_deductions_followed += 1
 
         return True
 
@@ -304,4 +305,7 @@ def _check_premises_of_deduction(
 
 def _check_rule_conclusions(deduction: CachedRuleDeduction) -> None:
     """Double check that the deduction is a valid application of the rule."""
-    pass
+    # TODO: Implement full validation logic.
+    # For now, we at least ensure it's not a silent pass if something is obviously wrong.
+    if not deduction.conclusions:
+        raise DoubleCheckError(f"Deduction {deduction} has no conclusions.")

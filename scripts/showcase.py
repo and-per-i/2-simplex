@@ -25,7 +25,13 @@ def load_model():
         device = torch.device("cpu")
         print("🐌 Utilizzo CPU (Nessuna accelerazione hardware trovata)")
         
-    model = StudentModelProgressive(vocab_size=1024, dim_hidden=384, num_layers=8, num_heads=8)
+    # Carica StudentModelProgressive che corrisponde al checkpoint salvato
+    model = StudentModelProgressive(
+        vocab_size=1024,
+        dim_hidden=384,
+        num_layers=8,
+        simplicial_layers=[3, 7],
+    )
     state_dict = torch.load(CHECKPOINT_PATH, map_location=device, weights_only=True)
     model.load_state_dict(state_dict)
     model.to(device)
@@ -37,14 +43,17 @@ def load_model():
 # --- TRADUZIONE VOCABOLARIO GEOMETRICO ---
 GEO_VOCAB = {
     "x00": "[Aggiungi Punto Ausiliario]",
-    "00": "[Relazione Appartenenza]",
-    "01": "[Relazione Congruenza]",
-    "02": "[Relazione Parallelismo]",
-    "05": "[Relazione Perpendicolarità]",
-    "i": "[Intersezione Strategica]",
-    "r49": "[Uguaglianza Raggi/Rapporti]",
+    "00": "[Appartenenza]",
+    "01": "[Congruenza]",
+    "02": "[Parallelismo]",
+    "05": "[Perpendicolarità]",
+    "i": "[Intersezione]",
+    "r49": "[Uguaglianza]",
     "c": "[Centro/Circonferenza]",
     "e": "[Punto Esterno]",
+    "midp": "[Punto Medio]",
+    "perp": "[Perpendicolare]",
+    "coll": "[Collineare]",
     ":": "→ DEFINITO COME:",
     ";": "PROSSIMO STEP:",
 }
@@ -66,7 +75,9 @@ PROBLEMS_INFO = {
 }
 
 def decode_thought(raw_text):
-    tokens = raw_text.split()
+    # Rimuove il prefisso SentencePiece '▁' e pulisce
+    clean_text = raw_text.replace("▁", " ").strip()
+    tokens = clean_text.split()
     decoded = []
     for t in tokens:
         if t in GEO_VOCAB:

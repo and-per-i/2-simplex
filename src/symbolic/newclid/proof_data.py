@@ -144,9 +144,10 @@ def proof_justifications_to_proof_data(
                 predicates_proven[predicate] = tag
                 continue
 
+        all_proven = {**construction_assumptions, **numerical_checks, **predicates_proven}
         tag = _get_or_create_tag(
             justification.predicate,
-            predicates_proven | numerical_checks | construction_assumptions,
+            all_proven,
             ProofId(f"{len(new_predicates)}"),
         )
         depends_on: list[ProofId] = []
@@ -168,9 +169,7 @@ def proof_justifications_to_proof_data(
 
                 else:
                     raise KeyError(
-                        "Could not find predicate %s in the list of previously proven predicates: %s",
-                        previous_stmt,
-                        predicates_proven,
+                        f"Could not find predicate {previous_stmt} in the list of previously proven predicates: {predicates_proven}"
                     )
             depends_on.append(predicates_proven[previous_stmt])
 

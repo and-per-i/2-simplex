@@ -101,8 +101,16 @@ def translate_to_newclid(points, assumes, proves):
     if proves:
         pred = proves[0][0]
         args = proves[0][1:]
-        if pred == "cong": pred = "cong"
-        elif pred == "eqangle": pred = "eqangle"
+        # Map predicates from AlphaGeometry to Newclid
+        PRED_MAP = {
+            "cong": "cong",
+            "eqangle": "eqangle",
+            "perp": "perp",
+            "para": "para",
+            "coll": "coll",
+            "cyclic": "cyclic"
+        }
+        pred = PRED_MAP.get(pred, pred)
         goal_str = f" ? {pred} {' '.join(args)}"
         
     return setup_str + goal_str

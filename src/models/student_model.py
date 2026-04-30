@@ -39,26 +39,29 @@ class StudentEmbeddings(nn.Module):
 
     def __init__(self, config: StudentConfig):
         super().__init__()
-        self.token_embeddings = nn.Embedding(
+        self.token_embedding = nn.Embedding(
             config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id
         )
-        self.position_embeddings = nn.Embedding(
+        self.position_embedding = nn.Embedding(
             config.max_position_embeddings, config.hidden_size
         )
-        self.layer_norm = nn.LayerNorm(config.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.dropout_prob)
 
-    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+    def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         B, S = input_ids.shape
         device = input_ids.device
 
-        position_ids = torch.arange(S, dtype=torch.long, device=device).unsqueeze(0)
+        if attention_mask is not None:
+            # Calcola posizioni incrementali ignorando il padding
+            # [0, 0, 1, 1, 1] -> [0, 0, 0, 1, 2]
+            position_ids = (torch.cumsum(attention_mask, dim=1) - 1).clamp(min=0)
+        else:
+            position_ids = torch.arange(S, dtype=torch.long, device=device).unsqueeze(0).expand(B, S)
 
-        token_emb = self.token_embeddings(input_ids)           # (B, S, H)
-        pos_emb = self.position_embeddings(position_ids)       # (1, S, H)
+        token_emb = self.token_embedding(input_ids)           # (B, S, H)
+        pos_emb = self.position_embedding(position_ids)       # (B, S, H)
 
-        embeddings = self.layer_norm(token_emb + pos_emb)
-        return self.dropout(embeddings)
+        return self.dropout(token_emb + pos_emb)
 
 
 class StudentAttention(nn.Module):
@@ -71,31 +74,16 @@ class StudentAttention(nn.Module):
 
     def __init__(self, config: StudentConfig):
         super().__init__()
-        self.use_simplex_attention = config.use_simplex_attention
         self.num_heads = config.num_attention_heads
         self.head_dim = config.head_dim
         self.hidden_size = config.hidden_size
         self.scale = math.sqrt(self.head_dim)
 
-        if self.use_simplex_attention:
-            # Usa il modulo custom 2-Simplex con sliding window
-            self.simplex_attn = TwoSimplicialAttention(
-                in_dim=config.hidden_size,
-                out_dim=config.hidden_size,
-                num_heads=config.num_attention_heads,
-                dropout=config.dropout_prob,
-                use_triton_kernel=getattr(config, "use_triton", True),
-                with_residual=False, # Handled by StudentTransformerLayer
-                with_norm=False,     # Handled by StudentTransformerLayer
-                w1=config.w1,
-                w2=config.w2
-            )
-        else:
-            self.q_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
-            self.k_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
-            self.v_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
-            self.out_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
-            self.attn_dropout = nn.Dropout(config.dropout_prob)
+        self.q_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
+        self.k_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
+        self.v_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
+        self.out_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.attn_dropout = nn.Dropout(config.dropout_prob)
 
     def forward(
         self,
@@ -103,11 +91,6 @@ class StudentAttention(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         B, S, _ = hidden_states.shape
-
-        if self.use_simplex_attention:
-            # Il modulo 2-Simplicial gestisce ora la sliding window e il batch dimension internamente
-            return self.simplex_attn(hidden_states)
-
 
         def split_heads(x: torch.Tensor) -> torch.Tensor:
             # (B, S, H) → (B, num_heads, S, head_dim)
@@ -155,11 +138,11 @@ class StudentFeedForward(nn.Module):
         super().__init__()
         self.fc1 = nn.Linear(config.hidden_size, config.intermediate_size)
         self.fc2 = nn.Linear(config.intermediate_size, config.hidden_size)
-        self.act = nn.GELU()
+        self.activation = nn.GELU()
         self.dropout = nn.Dropout(config.dropout_prob)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.dropout(self.fc2(self.act(self.fc1(x))))
+        return self.dropout(self.fc2(self.activation(self.fc1(x))))
 
 
 class StudentTransformerLayer(nn.Module):
@@ -171,19 +154,39 @@ class StudentTransformerLayer(nn.Module):
         x = x + FFN(LN(x))
     """
 
-    def __init__(self, config: StudentConfig):
+    def __init__(self, config: StudentConfig, layer_idx: int = 0):
         super().__init__()
+        self.layer_idx = layer_idx
         self.ln1 = nn.LayerNorm(config.hidden_size, eps=1e-5)
         self.ln2 = nn.LayerNorm(config.hidden_size, eps=1e-5)
-        self.attention = StudentAttention(config)
-        self.ffn = StudentFeedForward(config)
+        if config.use_simplex_attention:
+            self.attention = TwoSimplicialAttention(
+                in_dim=config.hidden_size,
+                out_dim=config.hidden_size,
+                num_heads=config.num_attention_heads,
+                dropout=config.dropout_prob,
+                use_triton_kernel=getattr(config, "use_triton", True),
+                with_residual=False, # Handled by StudentTransformerLayer
+                with_norm=False,     # Handled by StudentTransformerLayer
+                w1=config.w1,
+                w2=config.w2
+            )
+        else:
+            self.attention = StudentAttention(config)
+        self.mlp = StudentFeedForward(config)
         self.resid_dropout = nn.Dropout(config.dropout_prob)
+        # Use a buffer for is_bypassed to ensure synchronization across DDP ranks
+        self.register_buffer("is_bypassed", torch.tensor(False, dtype=torch.bool))
 
     def forward(
         self,
         hidden_states: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        # Se il layer è bypassato, restituisce l'input invariato (residual identity)
+        if self.is_bypassed:
+            return hidden_states
+
         # Self-attention con residual
         residual = hidden_states
         hidden_states = self.ln1(hidden_states)
@@ -196,7 +199,7 @@ class StudentTransformerLayer(nn.Module):
         # FFN con residual
         residual = hidden_states
         hidden_states = self.ln2(hidden_states)
-        hidden_states = self.ffn(hidden_states)
+        hidden_states = self.mlp(hidden_states)
         hidden_states = residual + self.resid_dropout(hidden_states)
 
         return hidden_states
@@ -219,7 +222,7 @@ class StudentModel(PreTrainedModel):
         super().__init__(config)
         self.embeddings = StudentEmbeddings(config)
         self.layers = nn.ModuleList(
-            [StudentTransformerLayer(config) for _ in range(config.num_hidden_layers)]
+            [StudentTransformerLayer(config, i) for i in range(config.num_hidden_layers)]
         )
         self.final_ln = nn.LayerNorm(config.hidden_size, eps=1e-5)
         self.gradient_checkpointing = False
@@ -230,7 +233,7 @@ class StudentModel(PreTrainedModel):
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, ...]:
-        hidden_states = self.embeddings(input_ids)
+        hidden_states = self.embeddings(input_ids, attention_mask=attention_mask)
 
         all_hidden_states = []
         for layer in self.layers:
@@ -259,21 +262,31 @@ class StudentForCausalLM(PreTrainedModel, GenerationMixin):
 
     def __init__(self, config: StudentConfig):
         super().__init__(config)
-        self.model = StudentModel(config)
-
+        # Backbone components directly at top level to match checkpoint
+        self.token_embedding = nn.Embedding(
+            config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id
+        )
+        self.position_embedding = nn.Embedding(
+            config.max_position_embeddings, config.hidden_size
+        )
+        self.emb_dropout = nn.Dropout(config.dropout_prob)
+        
+        self.layers = nn.ModuleList(
+            [StudentTransformerLayer(config, i) for i in range(config.num_hidden_layers)]
+        )
+        self.ln_f = nn.LayerNorm(config.hidden_size, eps=1e-5)
+        
         # LM head: hidden_size → vocab_size
-        # CRITICO: out_features DEVE essere uguale al vocab_size del teacher
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         self.post_init()
-        # Dopo post_init, esegui il tying esplicitamente
         self.tie_weights()
 
     def get_input_embeddings(self):
-        return self.model.embeddings.token_embeddings
+        return self.token_embedding
 
     def set_input_embeddings(self, value):
-        self.model.embeddings.token_embeddings = value
+        self.token_embedding = value
 
     def get_output_embeddings(self):
         return self.lm_head
@@ -310,33 +323,37 @@ class StudentForCausalLM(PreTrainedModel, GenerationMixin):
         token_type_ids: Optional[torch.LongTensor] = None,
         **kwargs,
     ) -> Union[CausalLMOutputWithPast, Tuple]:
-        """
-        Args:
-            input_ids: (B, S) token IDs
-            attention_mask: (B, S) maschera di padding (1=valido, 0=padding)
-            labels: (B, S) target per la CE loss. -100 per ignorare posizioni.
-            output_hidden_states: se True, ritorna tutti gli hidden states intermedi.
-            return_dict: se True (default), ritorna CausalLMOutputWithPast.
+        
+        B, S = input_ids.shape
+        device = input_ids.device
 
-        Returns:
-            CausalLMOutputWithPast con:
-                .loss    — CE loss (None se labels non fornite)
-                .logits  — (B, S, vocab_size) — USATO DAL KDTrainer
-                .hidden_states — tuple di hidden states (se richiesto)
-        """
-        hidden_states, all_hidden = self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-        )
+        if attention_mask is not None:
+            position_ids = (torch.cumsum(attention_mask, dim=1) - 1).clamp(min=0)
+        else:
+            position_ids = torch.arange(S, dtype=torch.long, device=device).unsqueeze(0).expand(B, S)
 
-        # Proiezione finale sul vocabolario
-        logits = self.lm_head(hidden_states)  # (B, S, vocab_size)
-
+        token_emb = self.token_embedding(input_ids)
+        pos_emb = self.position_embedding(position_ids)
+        hidden_states = self.emb_dropout(token_emb + pos_emb)
+        
+        all_hidden_states = () if output_hidden_states else None
+        
+        for layer in self.layers:
+            if output_hidden_states:
+                all_hidden_states = all_hidden_states + (hidden_states,)
+                
+            hidden_states = layer(
+                hidden_states,
+                attention_mask=attention_mask,
+            )
+            
+        hidden_states = self.ln_f(hidden_states)
+        logits = self.lm_head(hidden_states)
+        
         loss = None
         if labels is not None:
-            # Shift per causal LM: predici token t+1 dato token t
-            shift_logits = logits[..., :-1, :].contiguous()   # (B, S-1, V)
-            shift_labels = labels[..., 1:].contiguous()        # (B, S-1)
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
             loss = nn.functional.cross_entropy(
                 shift_logits.view(-1, self.config.vocab_size),
                 shift_labels.view(-1),
@@ -344,13 +361,13 @@ class StudentForCausalLM(PreTrainedModel, GenerationMixin):
             )
 
         if not return_dict:
-            out = (logits,) + (tuple(all_hidden) if output_hidden_states else ())
+            out = (logits,) + (all_hidden_states if output_hidden_states else ())
             return (loss,) + out if loss is not None else out
 
         return CausalLMOutputWithPast(
             loss=loss,
             logits=logits,
-            hidden_states=tuple(all_hidden) if output_hidden_states else None,
+            hidden_states=all_hidden_states,
             past_key_values=None,
             attentions=None,
         )

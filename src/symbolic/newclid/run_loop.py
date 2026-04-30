@@ -29,7 +29,7 @@ def run_loop(
     """Run DeductiveAgent until saturation or goal found."""
     for goal in proof.goals:
         if not proof.check_numerical(goal):
-            raise ValueError("%s fails numerical check", goal)
+            raise ValueError(f"{goal} fails numerical check")
 
     t0 = time.time()
     step = 0
@@ -41,7 +41,7 @@ def run_loop(
     runtime = time.time() - t0
     success_per_goal: dict[str, bool] = {}
     for goal in proof.goals:
-        success_per_goal[f"{goal} succeeded"] = proof.check(goal)
+        success_per_goal[f"{goal}_completato"] = proof.check(goal)
 
     return RunInfos(
         runtime=runtime,

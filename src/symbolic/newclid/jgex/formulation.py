@@ -163,5 +163,8 @@ def _alphabetize_clauses(
         for point in construction.points:
             if point in mapping:
                 continue
-            mapping[point] = PredicateArgument(ALPHABET[len(mapping)])
+            if len(mapping) < len(ALPHABET):
+                mapping[point] = PredicateArgument(ALPHABET[len(mapping)])
+            else:
+                mapping[point] = PredicateArgument(f"p{len(mapping)}")
     return tuple(construction.renamed(mapping) for construction in clauses)

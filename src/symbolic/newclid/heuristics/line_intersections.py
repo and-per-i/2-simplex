@@ -40,6 +40,10 @@ class LineIntersectionsHeuristic(Heuristic):
             pair_index = rng.choice(len(pairs_of_lines))
             line1, line2 = pairs_of_lines.pop(pair_index)
 
+            if len(line1.points) < 2 or len(line2.points) < 2:
+                LOGGER.warning(f"One of the lines has less than 2 points, skipping intersection.")
+                continue
+
             point_1 = line1.points[0]
             point_2 = line1.points[1]
 

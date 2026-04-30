@@ -292,10 +292,15 @@ def _add_clause_points(
     for point_value in clause.points:
         if "@" in point_value:
             name, pos = atomize(point_value, "@")
-            x, y = atomize(pos, "_")
-            new_fixed_points[PredicateArgument(name)] = JGEXPoint(
-                x=float(x), y=float(y)
-            )
+            parts = atomize(pos, "_")
+            if len(parts) == 2:
+                x, y = parts
+                new_fixed_points[PredicateArgument(name)] = JGEXPoint(
+                    x=float(x), y=float(y)
+                )
+            else:
+                LOGGER.warning(f"Malformed coordinate in {point_value}, ignoring position.")
+                new_fixed_points[PredicateArgument(name)] = None
         else:
             new_fixed_points[PredicateArgument(point_value)] = None
 

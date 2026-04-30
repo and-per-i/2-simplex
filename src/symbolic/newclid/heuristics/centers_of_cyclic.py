@@ -36,6 +36,10 @@ class CentersOfCyclicHeuristic(Heuristic):
             circle_index = rng.choice(len(circles))
             circle = circles.pop(circle_index)
 
+            if len(circle.points) < 3:
+                LOGGER.warning(f"Circle {circle} has less than 3 points, skipping.")
+                continue
+
             p1, p2, p3 = sorted(circle.points[:3])
 
             new_point = get_available_from_alphabet(points)
